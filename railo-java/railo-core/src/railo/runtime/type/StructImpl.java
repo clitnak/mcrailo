@@ -237,4 +237,14 @@ public class StructImpl extends StructSupport {
 	protected Map<Collection.Key,Object> getMap() {
 		return map;
 	}
+	
+	@Override
+	public int hashCode() {
+		return map.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return map.equals(obj);
+	}
 }

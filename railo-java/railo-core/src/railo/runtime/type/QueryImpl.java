@@ -58,7 +58,6 @@ import railo.runtime.exp.DatabaseException;
 import railo.runtime.exp.ExpressionException;
 import railo.runtime.exp.PageException;
 import railo.runtime.exp.PageRuntimeException;
-import railo.runtime.functions.query.QueryColumnCount;
 import railo.runtime.interpreter.CFMLExpressionInterpreter;
 import railo.runtime.op.Caster;
 import railo.runtime.op.Decision;
@@ -66,7 +65,6 @@ import railo.runtime.op.Duplicator;
 import railo.runtime.op.ThreadLocalDuplication;
 import railo.runtime.op.date.DateCaster;
 import railo.runtime.query.caster.Cast;
-import railo.runtime.timer.Stopwatch;
 import railo.runtime.type.comparator.NumberSortRegisterComparator;
 import railo.runtime.type.comparator.SortRegister;
 import railo.runtime.type.comparator.SortRegisterComparator;
@@ -181,16 +179,16 @@ public class QueryImpl implements Query,Objects,Sizeable {
 	 * @param maxrow maxrow for the resultset
 	 * @throws PageException
 	 */	
-    public QueryImpl(DatasourceConnection dc,SQL sql,int maxrow, int fetchsize,int timeout, String name) throws PageException {
-    	this(dc, sql, maxrow, fetchsize, timeout, name,null,false,true);
+    public QueryImpl(PageContext pc, DatasourceConnection dc,SQL sql,int maxrow, int fetchsize,int timeout, String name) throws PageException {
+    	this(pc,dc, sql, maxrow, fetchsize, timeout, name,null,false,true);
     }
     
 
-    public QueryImpl(DatasourceConnection dc,SQL sql,int maxrow, int fetchsize,int timeout, String name,String template) throws PageException {
-    	this(dc, sql, maxrow, fetchsize, timeout, name,template,false,true);
+    public QueryImpl(PageContext pc, DatasourceConnection dc,SQL sql,int maxrow, int fetchsize,int timeout, String name,String template) throws PageException {
+    	this(pc,dc, sql, maxrow, fetchsize, timeout, name,template,false,true);
     }
     
-	public QueryImpl(DatasourceConnection dc,SQL sql,int maxrow, int fetchsize,int timeout, String name,String template,boolean createUpdateData, boolean allowToCachePreperadeStatement) throws PageException {
+	public QueryImpl(PageContext pc, DatasourceConnection dc,SQL sql,int maxrow, int fetchsize,int timeout, String name,String template,boolean createUpdateData, boolean allowToCachePreperadeStatement) throws PageException {
 		this.name=name;
 		this.template=template;
         this.sql=sql;
@@ -221,7 +219,7 @@ public class QueryImpl implements Query,Objects,Sizeable {
 		        setAttributes(stat,maxrow,fetchsize,timeout);
 		     // some driver do not support second argument
 		        //hasResult=createGeneratedKeys?stat.execute(sql.getSQLString(),Statement.RETURN_GENERATED_KEYS):stat.execute(sql.getSQLString());
-		        hasResult=QueryUtil.execute(stat,createGeneratedKeys,sql);
+		        hasResult=QueryUtil.execute(pc,stat,createGeneratedKeys,sql);
 	        }
 	        else {
 	        	// some driver do not support second argument
@@ -230,7 +228,7 @@ public class QueryImpl implements Query,Objects,Sizeable {
 	        	stat=preStat;
 	            setAttributes(preStat,maxrow,fetchsize,timeout);
 	            setItems(preStat,items);
-		        hasResult=preStat.execute();    
+		        hasResult=QueryUtil.execute(pc,preStat);    
 	        }
 			int uc;
 			ResultSet res;
@@ -3220,12 +3218,6 @@ public class QueryImpl implements Query,Objects,Sizeable {
 		}
 		return size;
 	}
-	
-
-	public boolean equals(Object obj){
-		if(!(obj instanceof Collection)) return false;
-		return CollectionUtil.equals(this,(Collection)obj);
-	}
 
 	public int getHoldability() throws SQLException {
 		throw notSupported();
@@ -3486,5 +3478,16 @@ public class QueryImpl implements Query,Objects,Sizeable {
 	@Override
 	public java.util.Iterator getIterator() {
 		return new ForEachQueryIterator(this, ThreadLocalPageContext.get().getId());
-    } 
+    }
+	
+	@Override
+	public boolean equals(Object obj){
+		if(!(obj instanceof Collection)) return false;
+		return CollectionUtil.equals(this,(Collection)obj);
+	}
+	
+	@Override
+	public int hashCode() {
+		return CollectionUtil.hashCode(this);
+	}
 }
