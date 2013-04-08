@@ -2057,9 +2057,17 @@ public abstract class ConfigImpl implements Config {
      * @param type The sessionType to set.
      */
     protected void setSessionType(String type) {
+    	System.out.println("DEBUG: " + type);
+    	try{
+    		throw new Exception();
+    	}
+    	catch(Exception e){
+    		e.printStackTrace();
+    	}
         type=type.toLowerCase().trim();
         if(type.startsWith("cfm")) setSessionType(SESSION_TYPE_CFML);
         else if(type.startsWith("j")) setSessionType(SESSION_TYPE_J2EE);
+        else if(type.equalsIgnoreCase("mongo")) setSessionType(SESSION_TYPE_MONGO);
         else setSessionType(SESSION_TYPE_CFML);
     }
 

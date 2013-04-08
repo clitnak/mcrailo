@@ -413,12 +413,15 @@ public final class ScopeContext {
 	 * @throws PageException
 	 */
 	public Session getSessionScope(PageContext pc,RefBoolean isNew) throws PageException {
+		System.out.println("DEBUG: "+pc.getSessionType());
         if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return getCFSessionScope(pc,isNew);
+        else if(pc.getSessionType()==Config.SESSION_TYPE_MONGO)return getMongoSessionScope(pc, isNew);
 		return getJSessionScope(pc,isNew);
 	}
 	
 	public boolean hasExistingSessionScope(PageContext pc) {
         if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return hasExistingCFSessionScope(pc);
+        else if(pc.getSessionType()==Config.SESSION_TYPE_MONGO)return hasExistingMongoSessionScope(pc);
 		return hasExistingJSessionScope(pc);
 	}
 	
@@ -428,6 +431,10 @@ public final class ScopeContext {
         
         Session session=(Session) httpSession.getAttribute(pc.getApplicationContext().getName());
         return session instanceof JSession;
+	}
+	
+	private boolean hasExistingMongoSessionScope(PageContext pc) {
+		return false;
 	}
 	
 	
@@ -464,6 +471,12 @@ public final class ScopeContext {
 				}
 			}
 			return true;
+	}
+	
+	private synchronized Session getMongoSessionScope(PageContext pc, RefBoolean isNew) throws PageException {
+		
+			throw new ApplicationException("bogus exception");
+		//return null;
 	}
 	
 	
