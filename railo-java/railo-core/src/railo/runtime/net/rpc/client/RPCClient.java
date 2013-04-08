@@ -444,7 +444,7 @@ public final class RPCClient implements Objects, Iteratorable{
 		TypeEntry superEntry = getSuperEntry(type);
 		Class superClass = null;
 		if(superEntry != null) {
-			superClass = mapComplex(config,call,tm,superEntry);
+			superClass = mapComplex(pc, secondChanceConfig,call,tm,superEntry);
 		}
 		Pojo pojo;
 		if(pc==null)pojo = (Pojo) ComponentUtil.getClientComponentPropertiesObject(secondChanceConfig,clientClassName,props,superClass);

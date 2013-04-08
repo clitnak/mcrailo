@@ -82,14 +82,14 @@ public final class ComponentUtil {
      * @throws PageException
      */
 	public static Class getComponentJavaAccess(PageContext pc,ComponentAccess component, RefBoolean isNew,boolean create,boolean writeLog, boolean supressWSbeforeArg, String namespace) throws PageException {
-		return _getComponentJavaAccess(PageContext pc,component, isNew,create,writeLog,supressWSbeforeArg,namespace);
+		return _getComponentJavaAccess(pc,component, isNew,create,writeLog,supressWSbeforeArg,namespace);
 	}
 	    
-	public static Class getComponentJavaAccess(ComponentAccess component, RefBoolean isNew,boolean create,boolean writeLog, boolean supressWSbeforeArg) throws PageException {
-		return _getComponentJavaAccess(PageContext pc,component, isNew,create,writeLog,supressWSbeforeArg,null);
+	public static Class getComponentJavaAccess(PageContext pc,ComponentAccess component, RefBoolean isNew,boolean create,boolean writeLog, boolean supressWSbeforeArg) throws PageException {
+		return _getComponentJavaAccess(pc,component, isNew,create,writeLog,supressWSbeforeArg,null);
 	}
 
-    private static Class _getComponentJavaAccess(ComponentAccess component, RefBoolean isNew,boolean create,boolean writeLog, boolean supressWSbeforeArg, String namespace) throws PageException {
+    private static Class _getComponentJavaAccess(PageContext pc,ComponentAccess component, RefBoolean isNew,boolean create,boolean writeLog, boolean supressWSbeforeArg, String namespace) throws PageException {
     	isNew.setValue(false);
     	String classNameOriginal=component.getPageSource().getFullClassName();
     	String className="DefaultNamespace.".concat(getClassname(component));
@@ -353,7 +353,7 @@ public final class ComponentUtil {
 	 */
 	public static Object getClientComponentPropertiesObject(PageContext pc, String className, ASMProperty[] properties) throws PageException {
 		try {
-			return _getClientComponentPropertiesObject(pc,pc.getConfig(), className, properties);
+			return _getClientComponentPropertiesObject(pc,pc.getConfig(), className, properties,null);
 		} catch (Exception e) {
 			throw Caster.toPageException(e);
 		}
@@ -368,7 +368,15 @@ public final class ComponentUtil {
 	 */
 	public static Object getClientComponentPropertiesObject(Config config, String className, ASMProperty[] props, Class superClass) throws PageException {
 		try {
-			return _getClientComponentPropertiesObject(null,config, className, properties,superClass);
+			return _getClientComponentPropertiesObject(null,config, className, props,superClass);
+		} catch (Exception e) {
+			throw Caster.toPageException(e);
+		}
+	}
+	
+	public static Object getClientComponentPropertiesObject(PageContext pc, String className, ASMProperty[] props, Class superClass) throws PageException {
+		try {
+			return _getClientComponentPropertiesObject(pc,null, className, props,superClass);
 		} catch (Exception e) {
 			throw Caster.toPageException(e);
 		}
@@ -487,9 +495,8 @@ public final class ComponentUtil {
     	Class superClass = Object.class;
     	
     	if(includeSuper && component.getExtends() != null && !component.getExtends().equals("")) {
-    		PageContext pc = ThreadLocalPageContext.get();
     		Component superCFC = ComponentLoader.loadComponent(pc, component.getExtends(), true, true);
-    		superClass = _getServerComponentPropertiesClass(superCFC,true,namespace);
+    		superClass = _getServerComponentPropertiesClass(pc,superCFC,true,namespace);
     	}
     	
     	Mapping mapping = component.getPageSource().getMapping();
