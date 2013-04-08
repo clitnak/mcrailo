@@ -50,6 +50,7 @@ import railo.commons.lang.ClassUtil;
 import railo.runtime.Component;
 import railo.runtime.exp.PageException;
 import railo.runtime.exp.PageServletException;
+import railo.runtime.net.http.ReqRspUtil;
 import railo.runtime.net.rpc.TypeMappingUtil;
 import railo.runtime.op.Caster;
 import railo.runtime.type.util.ComponentUtil;
@@ -97,7 +98,7 @@ public final class RPCServer{
         ServiceAdmin.setEngine(this.getEngine(), context.getServerInfo());
     	
         webInfPath = context.getRealPath("/WEB-INF");
-        homeDir = context.getRealPath("/");
+        homeDir = ReqRspUtil.getRootPath(context);
         
     }
     

@@ -30,7 +30,7 @@ import railo.commons.io.res.filter.ExtensionResourceFilter;
 import railo.commons.io.res.type.compress.Compress;
 import railo.commons.io.res.type.compress.CompressResource;
 import railo.commons.io.res.type.compress.CompressResourceProvider;
-import railo.commons.io.res.util.ResourceClassLoaderFactory;
+import railo.commons.io.res.util.ResourceClassLoader;
 import railo.commons.io.res.util.ResourceUtil;
 import railo.commons.lang.ClassException;
 import railo.commons.lang.ClassUtil;
@@ -75,6 +75,7 @@ import railo.runtime.extension.ExtensionProvider;
 import railo.runtime.extension.ExtensionProviderImpl;
 import railo.runtime.listener.ApplicationContext;
 import railo.runtime.listener.ApplicationListener;
+import railo.runtime.listener.JavaSettingsImpl;
 import railo.runtime.net.amf.AMFCaster;
 import railo.runtime.net.amf.ClassicAMFCaster;
 import railo.runtime.net.amf.ModernAMFCaster;
@@ -93,6 +94,7 @@ import railo.runtime.search.SearchEngine;
 import railo.runtime.security.SecurityManager;
 import railo.runtime.spooler.SpoolerEngine;
 import railo.runtime.tag.Admin;
+import railo.runtime.tag.util.DeprecatedUtil;
 import railo.runtime.type.Struct;
 import railo.runtime.type.StructImpl;
 import railo.runtime.type.UDF;
@@ -153,12 +155,14 @@ public abstract class ConfigImpl implements Config {
 	private PhysicalClassLoader rpcClassLoader;
 	private Map<String,DataSource> datasources=new HashMap<String,DataSource>();
 	private Map<String,CacheConnection> caches=new HashMap<String, CacheConnection>();
-	
+
+	private CacheConnection defaultCacheFunction=null;
 	private CacheConnection defaultCacheObject=null;
 	private CacheConnection defaultCacheTemplate=null;
 	private CacheConnection defaultCacheQuery=null;
 	private CacheConnection defaultCacheResource=null;
-	
+
+	private String cacheDefaultConnectionNameFunction=null;
 	private String cacheDefaultConnectionNameObject=null;
 	private String cacheDefaultConnectionNameTemplate=null;
 	private String cacheDefaultConnectionNameQuery=null;
@@ -366,7 +370,8 @@ public abstract class ConfigImpl implements Config {
 	private Map<String, ORMEngine> ormengines=new HashMap<String, ORMEngine>();
 	private Class<ORMEngine> ormEngineClass;
 	private ORMConfiguration ormConfig;
-	private ResourceClassLoaderFactory classLoaderFactory;
+	//private ResourceClassLoaderFactory classLoaderFactory;
+	private ResourceClassLoader resourceCL;
 	
 	private ImportDefintion componentDefaultImport=new ImportDefintionImpl("org.railo.cfml","*");
 	private boolean componentLocalSearch=true;
@@ -638,18 +643,23 @@ public abstract class ConfigImpl implements Config {
      * @see railo.runtime.config.Config#getClassLoader()
      */
     public ClassLoader getClassLoader() {
-    	if(classLoaderFactory==null)
-    		classLoaderFactory=ResourceClassLoaderFactory.defaultClassLoader();
-    	return classLoaderFactory.getResourceClassLoader();   
+    	return getResourceClassLoader();   
+    }
+    public ResourceClassLoader getResourceClassLoader() {
+    	if(resourceCL==null) throw new RuntimeException("no RCL defined yet!");
+    	return resourceCL;   
     }
 
     /**
      * @see railo.runtime.config.Config#getClassLoader(railo.commons.io.res.Resource[])
      */
     public ClassLoader getClassLoader(Resource[] reses) throws IOException {
-    	if(classLoaderFactory==null)
-    		classLoaderFactory=ResourceClassLoaderFactory.defaultClassLoader();
-    	return classLoaderFactory.getResourceClassLoader(reses);   
+    	// FUTURE @deprected use instead PageContext.getClassLoader(Resource[] reses);
+    	//PageContextImpl pci=(PageContextImpl) ThreadLocalPageContext.get();
+    	//if(pci==null) 
+    		throw new RuntimeException("this method is no longer suported");
+    	//return pci.getClassLoader(reses);
+    	////return getResourceClassLoader().getCustomResourceClassLoader(reses);   
     }
     
 	/* *
@@ -659,14 +669,18 @@ public abstract class ConfigImpl implements Config {
 		return classLoaderFactory;
 	} */
 
-	/**
+	/* *
 	 * @param classLoaderFactory the classLoaderFactory to set
-	 */
-	protected void setClassLoaderFactory(ResourceClassLoaderFactory classLoaderFactory) {
+	/
+    protected void setClassLoaderFactory(ResourceClassLoaderFactory classLoaderFactory) {
 		if(this.classLoaderFactory!=null){
 			classLoaderFactory.reset();
 		}
 		this.classLoaderFactory = classLoaderFactory;
+	} */
+    
+    protected void setResourceClassLoader(ResourceClassLoader resourceCL) {
+    	this.resourceCL=resourceCL;
 	}
 
     /**
@@ -1361,22 +1375,52 @@ public abstract class ConfigImpl implements Config {
 	private String getKey(TagLib tl) {
 		return tl.getNameSpaceAndSeparator().toLowerCase();
 	}
+	
+	protected void setFldFile(Resource fileFld) throws FunctionLibException {
+		// merge all together (backward compatibility)
+        if(flds.length>1)for(int i=1;i<flds.length;i++) {
+        	overwrite(flds[0], flds[i]);
+        }
+        flds=new FunctionLib[]{flds[0]};
+        
+		
+		if(fileFld==null) return;
+        this.fldFile=fileFld;
 
-	/**
-     * set the optional directory of the function library deskriptors
-     * @param fileFld directory of the function libray deskriptors
-     * @throws FunctionLibException
-     */
-    protected void setFldFile(Resource fileFld) throws FunctionLibException {
+        
+        // overwrite with addional functions
+        FunctionLib fl;
+        if(fileFld.isDirectory()) {
+            Resource[] files=fileFld.listResources(new ExtensionResourceFilter("fld"));
+            for(int i=0;i<files.length;i++) {
+                try {
+                	fl = FunctionLibFactory.loadFromFile(files[i]);
+                	overwrite(flds[0],fl);
+                	
+                }
+                catch(FunctionLibException fle) {
+                    SystemOut.printDate(out,"can't load fld "+files[i]);
+                    fle.printStackTrace(getErrWriter());
+                }   
+            }
+        }
+        else {
+        	fl = FunctionLibFactory.loadFromFile(fileFld);
+        	overwrite(flds[0],fl);
+        }
+    }
+
+	/*
+    protected void setFldFileOld(Resource fileFld) throws FunctionLibException {
     	if(fileFld==null) return;
         this.fldFile=fileFld;
 
-        Map<String,FunctionLib> set=new HashMap<String,FunctionLib>();
+        Map<String,FunctionLib> map=new LinkedHashMap<String,FunctionLib>();
         String key;
         // First fill existing to set
         for(int i=0;i<flds.length;i++) {
         	key=getKey(flds[i]);
-        	set.put(key,flds[i]);
+        	map.put(key,flds[i]);
         }
         
         // now overwrite with new data
@@ -1387,11 +1431,12 @@ public abstract class ConfigImpl implements Config {
                 try {
                 	fl = FunctionLibFactory.loadFromFile(files[i]);
                 	key=getKey(fl);
-                	
-                	if(!set.containsKey(key))
-                		set.put(key,fl);
+                	// for the moment we only need one fld, so it is always overwrite, when you remove this make sure you get no conflicts with duplicates
+                	if(map.containsKey(key)) 
+                		overwrite(map.get(key),fl);
                 	else 
-                		overwrite(set.get(key),fl);
+                		map.put(key,fl);
+                		
                 	
                 }
                 catch(FunctionLibException fle) {
@@ -1404,21 +1449,21 @@ public abstract class ConfigImpl implements Config {
         	fl = FunctionLibFactory.loadFromFile(fileFld);
         	key=getKey(fl);
 
-        	if(!set.containsKey(key))
-        		set.put(key,fl);
+        	// for the moment we only need one fld, so it is always overwrite, when you remove this make sure you get no conflicts with duplicates
+        	if(map.containsKey(key))
+        		overwrite(map.get(key),fl);
         	else 
-        		overwrite(set.get(key),fl);
+        		map.put(key,fl);
         }
         
         // now fill back to array
-        flds=new FunctionLib[set.size()];
+        flds=new FunctionLib[map.size()];
         int index=0;
-        Iterator<FunctionLib> it = set.values().iterator();
+        Iterator<FunctionLib> it = map.values().iterator();
         while(it.hasNext()) {
         	flds[index++]= it.next();
         }
-        
-    }
+    }*/
     
 
     
@@ -1974,7 +2019,7 @@ public abstract class ConfigImpl implements Config {
     
     
     public String getSecurityKey() {
-    	return securityKey;//getServletContext().getRealPath("/");
+    	return securityKey;
     }
 
     /**
@@ -2433,10 +2478,8 @@ public abstract class ConfigImpl implements Config {
 	protected void setClientScopeDirSize(long clientScopeDirSize) {
 		this.clientScopeDirSize = clientScopeDirSize;
 	}
-	/**
-	 *
-	 * @see railo.runtime.config.Config#getRPCClassLoader()
-	 */
+	
+	@Override
 	public ClassLoader getRPCClassLoader(boolean reload) throws IOException {
 		
 		if(rpcClassLoader!=null && !reload) return rpcClassLoader;
@@ -2444,10 +2487,10 @@ public abstract class ConfigImpl implements Config {
 		Resource dir = getDeployDirectory().getRealResource("RPC");
 		if(!dir.exists())dir.createDirectory(true);
 		//rpcClassLoader = new PhysicalClassLoader(dir,getFactory().getServlet().getClass().getClassLoader());
-		rpcClassLoader = new PhysicalClassLoader(dir,getClass().getClassLoader());
+		rpcClassLoader = new PhysicalClassLoader(dir,getClassLoader());
 		return rpcClassLoader;
 	}
-
+	
 	public void resetRPCClassLoader() {
 		rpcClassLoader=null;
 	}
@@ -3082,6 +3125,9 @@ public abstract class ConfigImpl implements Config {
 			if(cc.getName().equalsIgnoreCase(cacheDefaultConnectionNameTemplate)){
 				defaultCacheTemplate=cc;
 			}
+			else if(cc.getName().equalsIgnoreCase(cacheDefaultConnectionNameFunction)){
+				defaultCacheFunction=cc;
+			}
 			else if(cc.getName().equalsIgnoreCase(cacheDefaultConnectionNameQuery)){
 				defaultCacheQuery=cc;
 			}
@@ -3101,25 +3147,30 @@ public abstract class ConfigImpl implements Config {
 
 	@Override
 	public CacheConnection getCacheDefaultConnection(int type) {
+		if(type==CACHE_DEFAULT_FUNCTION)	return defaultCacheFunction;
 		if(type==CACHE_DEFAULT_OBJECT)		return defaultCacheObject;
 		if(type==CACHE_DEFAULT_TEMPLATE)	return defaultCacheTemplate;
 		if(type==CACHE_DEFAULT_QUERY)		return defaultCacheQuery;
-		return defaultCacheResource;
+		if(type==CACHE_DEFAULT_RESOURCE)	return defaultCacheResource;
+		return null;
 	}
 
 	protected void setCacheDefaultConnectionName(int type,String cacheDefaultConnectionName) {
-		if(type==CACHE_DEFAULT_TEMPLATE)	cacheDefaultConnectionNameTemplate=cacheDefaultConnectionName;
+		if(type==CACHE_DEFAULT_FUNCTION)		cacheDefaultConnectionNameFunction=cacheDefaultConnectionName;
 		else if(type==CACHE_DEFAULT_OBJECT)		cacheDefaultConnectionNameObject=cacheDefaultConnectionName;
+		else if(type==CACHE_DEFAULT_TEMPLATE)	cacheDefaultConnectionNameTemplate=cacheDefaultConnectionName;
 		else if(type==CACHE_DEFAULT_QUERY)		cacheDefaultConnectionNameQuery=cacheDefaultConnectionName;
-		else cacheDefaultConnectionNameResource=cacheDefaultConnectionName;
+		else if(type==CACHE_DEFAULT_RESOURCE)	cacheDefaultConnectionNameResource=cacheDefaultConnectionName;
 	}
 	
 	@Override
 	public String getCacheDefaultConnectionName(int type) {
-		if(type==CACHE_DEFAULT_TEMPLATE)	return cacheDefaultConnectionNameTemplate;
+		if(type==CACHE_DEFAULT_FUNCTION)	return cacheDefaultConnectionNameFunction;
 		if(type==CACHE_DEFAULT_OBJECT)		return cacheDefaultConnectionNameObject;
+		if(type==CACHE_DEFAULT_TEMPLATE)	return cacheDefaultConnectionNameTemplate;
 		if(type==CACHE_DEFAULT_QUERY)		return cacheDefaultConnectionNameQuery;
-		return cacheDefaultConnectionNameResource;
+		if(type==CACHE_DEFAULT_RESOURCE)	return cacheDefaultConnectionNameResource;
+		return null;
 	}
 
 	public String getCacheMD5() { 

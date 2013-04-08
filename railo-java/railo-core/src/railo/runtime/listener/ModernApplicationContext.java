@@ -564,7 +564,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	public Mapping[] getMappings() {
 		if(!initMappings) {
 			Object o = get(component,MAPPINGS,null);
-			if(o!=null)mappings=AppListenerUtil.toMappings(config,o,mappings);
+			if(o!=null)mappings=AppListenerUtil.toMappings(config,o,mappings,getSource());
 			initMappings=true; 
 		}
 		return mappings;
@@ -828,7 +828,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 
 	@Override
 	public Resource getSource() {
-		return component.getPageSource().getPhyscalFile();
+		return component.getPageSource().getResource();
 	}
 
 

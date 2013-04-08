@@ -27,7 +27,6 @@ import railo.transformer.bytecode.Position;
 import railo.transformer.bytecode.cast.Cast;
 import railo.transformer.bytecode.expression.Expression;
 import railo.transformer.bytecode.expression.var.NullExpression;
-import railo.transformer.bytecode.literal.LitBoolean;
 import railo.transformer.bytecode.literal.LitString;
 import railo.transformer.bytecode.statement.PrintOut;
 import railo.transformer.bytecode.statement.StatementBase;
@@ -928,7 +927,7 @@ public final class CFMLTransformer {
     	}
     	// default value boolean true
     	else {
-    		value=LitBoolean.TRUE;
+    		value=tag.getAttributeDefaultValue();
     		if(sbType.toString().length()>0) {
     			value=Cast.toExpression(value, sbType.toString());
     		}

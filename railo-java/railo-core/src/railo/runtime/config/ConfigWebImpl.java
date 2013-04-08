@@ -41,6 +41,7 @@ import railo.runtime.lock.LockManager;
 import railo.runtime.lock.LockManagerImpl;
 import railo.runtime.monitor.IntervallMonitor;
 import railo.runtime.monitor.RequestMonitor;
+import railo.runtime.net.http.ReqRspUtil;
 import railo.runtime.security.SecurityManager;
 import railo.runtime.security.SecurityManagerImpl;
 import railo.runtime.tag.TagHandlerPool;
@@ -85,7 +86,7 @@ public final class ConfigWebImpl extends ConfigImpl implements ServletConfig, Co
         factory.setConfig(this);
     	ResourceProvider frp = ResourcesImpl.getFileResourceProvider();
         
-        this.rootDir=frp.getResource(config.getServletContext().getRealPath("/"));
+        this.rootDir=frp.getResource(ReqRspUtil.getRootPath(config.getServletContext()));
         
         
         // Fix for tomcat
@@ -269,13 +270,17 @@ public final class ConfigWebImpl extends ConfigImpl implements ServletConfig, Co
 	    private Map<String,Mapping> applicationMappings=new ReferenceMap();
 		private TagHandlerPool tagHandlerPool=new TagHandlerPool();
 		public Mapping getApplicationMapping(String virtual, String physical) {
+			return getApplicationMapping(virtual, physical, null);
+		}
+		
+		public Mapping getApplicationMapping(String virtual, String physical, String archive) {
 			String key=virtual.toLowerCase()+physical.toLowerCase();
 			Mapping m= applicationMappings.get(key);
 			if(m==null){
 				m=new MappingImpl(this,
 					virtual,
 					physical,
-					null,false,true,false,false,false,true,false
+					archive,false,true,false,false,false,true,false
 					);
 				applicationMappings.put(key, m);
 			}
