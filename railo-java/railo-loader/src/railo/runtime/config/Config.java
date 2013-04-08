@@ -80,11 +80,6 @@ public interface Config {
      */
     public static final short SESSION_TYPE_J2EE = 1;
     
-    /**
-     * Field <code>SESSION_TYPE_MONGO</code>
-     */
-    public static final short SESSION_TYPE_MONGO = 2;
-    
 
     /**
      * Field <code>RECOMPILE_NEVER</code>
