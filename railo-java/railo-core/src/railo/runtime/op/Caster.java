@@ -3128,7 +3128,7 @@ public final class Caster {
     	if(pc!=null)	{
         	try {
         		Component c = pc.loadComponent(type);
-        		return ComponentUtil.getServerComponentPropertiesClass(pc,c);
+        		return ComponentUtil.getServerComponentPropertiesClass(pc,c,true,"DefaultNamespace");
     		} 
             catch (PageException e) {
             	pe=e;
