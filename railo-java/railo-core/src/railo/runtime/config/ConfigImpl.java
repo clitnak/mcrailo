@@ -1994,7 +1994,6 @@ public abstract class ConfigImpl implements Config {
         type=type.toLowerCase().trim();
         if(type.startsWith("cfm")) setSessionType(SESSION_TYPE_CFML);
         else if(type.startsWith("j")) setSessionType(SESSION_TYPE_J2EE);
-        else if(type.equalsIgnoreCase("mongo")) setSessionType(SESSION_TYPE_MONGO);
         else setSessionType(SESSION_TYPE_CFML);
     }
 
