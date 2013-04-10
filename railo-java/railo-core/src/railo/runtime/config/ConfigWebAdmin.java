@@ -1704,7 +1704,7 @@ public final class ConfigWebAdmin {
   	    		
   	    		//check if key is lower case
   	    		if (cc == null) {
-  	    			cc = (CacheConnection) conns.get(n.toLowerCase());
+  	    			cc = conns.get(n.toLowerCase());
   	    		}
   	    		
   	    		if(cc!=null)Util.removeEL(config instanceof ConfigWeb?(ConfigWeb)config:null,cc);

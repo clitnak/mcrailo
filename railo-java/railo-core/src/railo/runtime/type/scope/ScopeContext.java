@@ -1,8 +1,11 @@
 package railo.runtime.type.scope;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.http.HttpSession;
 
@@ -67,6 +70,7 @@ public final class ScopeContext {
 	private Map<String,Map<String,Scope>> cfSessionContextes=new HashTable();
 	private Map<String,Map<String,Scope>> cfClientContextes=new HashTable();
 	private Map<String,Application> applicationContextes=new HashTable();
+	private Map<String,SessionManager> customSessionManagers = new ConcurrentHashMap<String, SessionManager>(); 
 
 	private int maxSessionTimeout=0;
 
@@ -404,7 +408,36 @@ public final class ScopeContext {
 		}
 		return sct;
 	}
-
+	
+	
+	private String customSessionManagerClass(ApplicationContext appContext) {
+		return appContext.getSessionManagerClass();
+	}
+	
+	private SessionManager getCustomSessionManager(PageContext pc) throws ApplicationException {
+		ApplicationContext appContext = pc.getApplicationContext();
+		String appName = appContext.getName();
+		String managerClass = customSessionManagerClass(appContext);
+		SessionManager manager = this.customSessionManagers.get(appName);
+		
+		if (manager == null && managerClass != null) {
+			//make new manager and put it in the map!
+			try {
+				manager = SessionManager.getInstance(managerClass);
+				this.customSessionManagers.put(appName, manager);
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+				throw new ApplicationException("A " + e.getClass().getName() + 
+						" was thrown while trying to instantiate a custom session manager of type: " 
+						+ managerClass);
+			}
+		} 
+			
+		return manager;
+	}
+	
+	
 	/**
 	 * return the session Scope for this context (cfid,cftoken,contextname)
 	 * @param pc PageContext 
@@ -412,8 +445,16 @@ public final class ScopeContext {
 	 * @throws PageException
 	 */
 	public Session getSessionScope(PageContext pc,RefBoolean isNew) throws PageException {
-        if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return getCFSessionScope(pc,isNew);
+		SessionManager customSessionManager = getCustomSessionManager(pc);
+		
+		if (customSessionManager != null) {
+			isNew.setValue(true); //cuz the RefBoolean type makes me queasy, and this is done below.
+			return customSessionManager.getSession(pc.getApplicationContext().getName(), pc.getCFID());
+		} 
+	      
+		if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return getCFSessionScope(pc,isNew);
 		return getJSessionScope(pc,isNew);
+	
 	}
 	
 	public boolean hasExistingSessionScope(PageContext pc) {

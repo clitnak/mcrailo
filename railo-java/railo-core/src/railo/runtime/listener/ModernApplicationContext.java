@@ -68,8 +68,8 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private static final Collection.Key BUFFER_OUTPUT = KeyImpl.intern("bufferOutput");
 	private static final Collection.Key SESSION_CLUSTER = KeyImpl.intern("sessionCluster");
 	private static final Collection.Key SESSION_CLUSTER_KEY = KeyImpl.intern("sessionClusterKey");
+	private static final Collection.Key SESSION_FACTORY_CLASS = KeyImpl.intern("sessionManagerClass");
 	private static final Collection.Key CLIENT_CLUSTER = KeyImpl.intern("clientCluster");
-	
 
 	private static final Collection.Key DEFAULT_DATA_SOURCE = KeyImpl.intern("defaultdatasource");
 	private static final Collection.Key ORM_ENABLED = KeyImpl.intern("ormenabled");
@@ -100,10 +100,12 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private boolean sessionCluster;
 	private boolean clientCluster;
 	
+	
 
 	private String clientStorage;
 	private String sessionStorage;
 	private String sessionClusterKey;
+	private String sessionManagerClass;
 	private String secureJsonPrefix="//";
 	private boolean secureJson; 
 	private Mapping[] mappings;
@@ -130,6 +132,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private boolean initSessionStorage;
 	private boolean initSessionCluster;
 	private boolean initSessionClusterKey;
+	private boolean initsessionManagerClass;
 	private boolean initClientCluster;
 	private boolean initLoginStorage;
 	private boolean initSessionType;
@@ -423,6 +426,19 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 		}
 		return sessionClusterKey;
 	}
+	
+	public String getSessionManagerClass() {
+		if (!initsessionManagerClass) {
+			Object obj = get(component, SESSION_FACTORY_CLASS, null); 
+			if (obj != null) {
+				sessionManagerClass = Caster.toString(obj, sessionManagerClass);
+			}
+			initsessionManagerClass = true;
+		}
+		
+		return sessionManagerClass;
+	}
+	
 	/**
 	 * @see railo.runtime.listener.ApplicationContext#getClientCluster()
 	 */
@@ -842,6 +858,11 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	public void setSessionClusterKey(String sessionClusterKey) {
 		this.sessionClusterKey = sessionClusterKey;
 		this.initSessionClusterKey =true;
+	}
+	
+	public void setsessionManagerClass(String sessionManagerClass) {
+		this.sessionManagerClass = sessionManagerClass;
+		this.initsessionManagerClass = true;
 	}
 
 	public void setS3(Properties s3) {

@@ -140,7 +140,7 @@
 
     <target name="deploy" depends="install" description="Deploys the .rc file and restarts MasterControl">
         <echo>Deploy ${core.version}.rc and restart MasterControlEMS</echo>
-    	<copy todir="C:\files\sites\11\server\railo\railo-server\patches" file="${dist.dir}/${core.version}.rc"/>
+    	<copy todir="C:\mc\v11\server\railo\railo-server\patches" file="${dist.dir}/${core.version}.rc"/>
     	<service action="stop" service="MasterControlEMS"/>
     	<service action="start" service="MasterControlEMS"/>
     </target>

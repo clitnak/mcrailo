@@ -111,6 +111,8 @@ public interface ApplicationContext extends Serializable {
 	public boolean getSessionCluster();
 	
 	public String getSessionClusterKey();
+	
+	public String getSessionManagerClass();
 
 	public boolean getClientCluster();
 
