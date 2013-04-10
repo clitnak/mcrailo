@@ -413,6 +413,7 @@ public final class ScopeContext {
 	 */
 	public Session getSessionScope(PageContext pc,RefBoolean isNew) throws PageException {
         if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return getCFSessionScope(pc,isNew);
+        else if(pc.getSessionType()==Config.SESSION_TYPE_MONGO)return getMongoSessionScope(pc,isNew);
 		return getJSessionScope(pc,isNew);
 	}
 	
@@ -429,6 +430,9 @@ public final class ScopeContext {
         return session instanceof JSession;
 	}
 	
+	private boolean hasExistingMongoSessionScope(PageContext pc) {
+		return false;
+	}
 	
 	private boolean hasExistingCFSessionScope(PageContext pc) {
 		
@@ -463,6 +467,20 @@ public final class ScopeContext {
 				}
 			}
 			return true;
+	}
+	
+	/**
+	 * return mongo session scope
+	 * @param pc PageContext
+	 * @param checkExpires 
+	 * @param listener 
+	 * @return mongo session matching the context
+	 * @throws PageException 
+	 */
+	private synchronized Session getMongoSessionScope(PageContext pc, RefBoolean isNew) throws PageException {
+		if(false)
+			throw new ApplicationException("bogus exception");
+		return null;
 	}
 	
 	
@@ -540,6 +558,8 @@ public final class ScopeContext {
 	}
 	
 	public synchronized void removeSessionScope(PageContext pc) throws PageException {
+		
+		// TODO: Mongo Session Scope?
 		
 		//CFSession
 		Session sess = getCFSessionScope(pc, new RefBooleanImpl());
