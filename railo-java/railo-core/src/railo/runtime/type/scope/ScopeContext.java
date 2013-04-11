@@ -1,7 +1,5 @@
 package railo.runtime.type.scope;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -297,6 +295,11 @@ public final class ScopeContext {
 	 * @return
 	 */
 	public int getSessionCount(PageContext pc) {
+		//doing the same as the j2ee sessions
+		if (customSessionManagers.keySet().size() > 0) {
+			return 0;
+		}
+		
 		if(pc.getSessionType()==Config.SESSION_TYPE_J2EE) return 0;
 		
 		Iterator<Entry<String, Map<String, Scope>>> it = cfSessionContextes.entrySet().iterator();
@@ -315,7 +318,18 @@ public final class ScopeContext {
 	 */
 	public int getAppContextSessionCount(PageContext pc) {
 		ApplicationContext appContext = pc.getApplicationContext(); 
+		
 		if(pc.getSessionType()==Config.SESSION_TYPE_J2EE) return 0;
+		try {
+			if (this.getCustomSessionManager(pc) != null) {
+				//doing the same as the j2ee sessions
+				return 0;
+			}
+		}
+		catch (ApplicationException e) {
+			//not configured correctly
+			e.printStackTrace();
+		}
 
 		Map<String, Scope> context = getSubMap(cfSessionContextes,appContext.getName());
 		return getSessionCount(context);
@@ -392,6 +406,7 @@ public final class ScopeContext {
 	 */
 	public Struct getAllSessionScopes(String appName) {
         //if(pc.getSessionType()==Config.SESSION_TYPE_J2EE)return new StructImpl();
+		//no implementation for j2ee sessions so not providing any for custom session managers
 		return getAllSessionScopes(getSubMap(cfSessionContextes,appName),appName);
 	}
 	
@@ -449,16 +464,27 @@ public final class ScopeContext {
 		
 		if (customSessionManager != null) {
 			isNew.setValue(true); //cuz the RefBoolean type makes me queasy, and this is done below.
-			return customSessionManager.getSession(pc.getApplicationContext().getName(), pc.getCFID());
+			return customSessionManager.getSession(pc.getCFID());
 		} 
 	      
 		if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return getCFSessionScope(pc,isNew);
 		return getJSessionScope(pc,isNew);
-	
 	}
 	
 	public boolean hasExistingSessionScope(PageContext pc) {
-        if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return hasExistingCFSessionScope(pc);
+		SessionManager customSessionManager;
+		try {
+			customSessionManager = getCustomSessionManager(pc);
+			if (customSessionManager != null) {
+				return customSessionManager.getSession(pc.getCFID()) != null;
+			}
+		}
+		catch (ApplicationException e) {
+			//custom session manager not configured correctly 
+			e.printStackTrace();
+		}
+        
+		if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return hasExistingCFSessionScope(pc);
 		return hasExistingJSessionScope(pc);
 	}
 	
@@ -581,6 +607,11 @@ public final class ScopeContext {
 	}
 	
 	public synchronized void removeSessionScope(PageContext pc) throws PageException {
+		SessionManager customSessionManager = this.getCustomSessionManager(pc);
+		if (customSessionManager != null) {
+			customSessionManager.removeSession(pc.getCFID());
+			return;
+		}
 		
 		//CFSession
 		Session sess = getCFSessionScope(pc, new RefBooleanImpl());
@@ -759,6 +790,7 @@ public final class ScopeContext {
      * remove all scope objects
      */
     public void clear() {
+    	clearCustomSessionManagers();
     	try{
 	    	Scope scope;
 	    	//Map.Entry entry,e;
@@ -803,7 +835,12 @@ public final class ScopeContext {
     	catch(Throwable t){t.printStackTrace();}
     }
 
-    
+    private void clearCustomSessionManagers() {
+    	for(String appName : customSessionManagers.keySet()) {
+    		customSessionManagers.get(appName).clear();
+    		customSessionManagers.remove(appName);
+    	}
+    }
 
 	private void storeUnusedStorageScope(CFMLFactoryImpl cfmlFactory, int type) {
         Map<String, Map<String, Scope>> contextes = type==Scope.SCOPE_CLIENT?cfClientContextes:cfSessionContextes;

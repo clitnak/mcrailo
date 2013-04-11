@@ -19,7 +19,8 @@ public abstract class SessionManager {
 		return instance;
 	}
 	
-	public abstract Session getSession(String applicationName, String CFID);
-	public abstract Map<String, Scope> getSessionScopesForApplication(String applicationName);
-    public abstract void removeSession(String applicationName, String CFID);
+	public abstract Session getSession(String CFID);
+    public abstract void removeSession(String CFID);
+    public abstract void clear();
+    public abstract Map<String, Session> getAllSessions();
 }
