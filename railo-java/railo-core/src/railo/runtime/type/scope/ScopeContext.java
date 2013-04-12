@@ -464,7 +464,7 @@ public final class ScopeContext {
 		
 		if (customSessionManager != null) {
 			isNew.setValue(true); //cuz the RefBoolean type makes me queasy, and this is done below.
-			return customSessionManager.getSession(pc.getCFID());
+			return customSessionManager.getSession(pc);
 		} 
 	      
 		if(pc.getSessionType()==Config.SESSION_TYPE_CFML)return getCFSessionScope(pc,isNew);
@@ -476,7 +476,7 @@ public final class ScopeContext {
 		try {
 			customSessionManager = getCustomSessionManager(pc);
 			if (customSessionManager != null) {
-				return customSessionManager.getSession(pc.getCFID()) != null;
+				return customSessionManager.getSession(pc) != null;
 			}
 		}
 		catch (ApplicationException e) {
