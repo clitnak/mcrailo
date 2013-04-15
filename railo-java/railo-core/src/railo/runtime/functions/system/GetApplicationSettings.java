@@ -69,7 +69,6 @@ public class GetApplicationSettings {
 		sct.setEL("sessionCluster", Caster.toBoolean(ac.getSessionCluster()));
 		sct.setEL("sessionClusterKey", Caster.toString(ac.getSessionClusterKey()));
 		sct.setEL("sessionManagerClass", Caster.toString(ac.getSessionManagerClass()));
-		System.err.println("KAPP: get app settings cf function" + ac.getSessionManagerConfig());
 		sct.setEL("sessionManagerConfig", ac.getSessionManagerConfig()); 
 				
 		

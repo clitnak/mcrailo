@@ -468,7 +468,6 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	}
 	
 	public void setSessionManagerConfig(Struct config) {
-		System.err.println("KAPP: Classic.setSessionConfig:" + config);
 		this.sessionManagerConfig = config;
 	}
 
@@ -529,7 +528,6 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	}
 	
 	public Struct getSessionManagerConfig() {
-		System.out.println("KAPP: class.getSessionManagerConfig: " + sessionManagerConfig);
 		return sessionManagerConfig;
 	}
 

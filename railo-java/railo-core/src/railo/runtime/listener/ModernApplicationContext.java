@@ -443,18 +443,14 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	}
 	
 	public Struct getSessionManagerConfig() {
-		System.err.println("KAPP: modern.getSessionManagerConfig " + initSessionManagerConfig);
 		if (!initSessionManagerConfig) {
 			Object obj = get(component, SESSION_MANAGER_CONFIG, null);
-			System.err.println("KAPP: modern.getSessionManagerConfig obj = " + obj);
 			if (obj != null) {
 				sessionManagerConfig = Caster.toStruct(obj, sessionManagerConfig); 
 			}
 			initSessionManagerConfig = true;
 		}
 		
-		System.err.println("KAPP: modern.getSessionManagerConfig " + this.initSessionManagerConfig + 
-				" , " + sessionManagerConfig);
 		return sessionManagerConfig;
 	}
 	
