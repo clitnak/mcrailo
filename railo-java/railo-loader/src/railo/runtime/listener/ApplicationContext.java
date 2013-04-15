@@ -9,6 +9,7 @@ import railo.runtime.exp.PageException;
 import railo.runtime.net.s3.Properties;
 import railo.runtime.orm.ORMConfiguration;
 import railo.runtime.rest.RestSettings;
+import railo.runtime.type.Struct;
 import railo.runtime.type.dt.TimeSpan;
 
 /**
@@ -113,6 +114,8 @@ public interface ApplicationContext extends Serializable {
 	public String getSessionClusterKey();
 	
 	public String getSessionManagerClass();
+	
+	public Struct getSessionManagerConfig();
 
 	public boolean getClientCluster();
 
@@ -146,6 +149,8 @@ public interface ApplicationContext extends Serializable {
 	public void setClientCluster(boolean clientCluster);
 	public void setSessionCluster(boolean sessionCluster);
 	public void setSessionClusterKey(String key);
+	public void setSessionManagerClass(String className);
+	public void setSessionManagerConfig(Struct config);
 	public void setS3(Properties s3);
 	public void setORMEnabled(boolean ormenabled);
 	public void setORMConfiguration(ORMConfiguration ormConf);

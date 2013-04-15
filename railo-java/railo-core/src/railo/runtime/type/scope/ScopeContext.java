@@ -424,21 +424,17 @@ public final class ScopeContext {
 		return sct;
 	}
 	
-	
-	private String customSessionManagerClass(ApplicationContext appContext) {
-		return appContext.getSessionManagerClass();
-	}
-	
 	private SessionManager getCustomSessionManager(PageContext pc) throws ApplicationException {
 		ApplicationContext appContext = pc.getApplicationContext();
 		String appName = appContext.getName();
-		String managerClass = customSessionManagerClass(appContext);
+		String managerClass = appContext.getSessionManagerClass(); 
+		Struct managerConfig = appContext.getSessionManagerConfig();
 		SessionManager manager = this.customSessionManagers.get(appName);
 		
-		if (manager == null && managerClass != null) {
+		if (manager == null && managerClass != null && managerConfig != null) {
 			//make new manager and put it in the map!
 			try {
-				manager = SessionManager.getInstance(managerClass);
+				manager = SessionManager.getInstance(managerClass, managerConfig);
 				this.customSessionManagers.put(appName, manager);
 			}
 			catch (Exception e) {
@@ -448,7 +444,8 @@ public final class ScopeContext {
 						+ managerClass);
 			}
 		} 
-			
+		
+		System.err.println("KAPP: getCustomSessionManager: " + manager);
 		return manager;
 	}
 	
@@ -462,6 +459,7 @@ public final class ScopeContext {
 	public Session getSessionScope(PageContext pc,RefBoolean isNew) throws PageException {
 		SessionManager customSessionManager = getCustomSessionManager(pc);
 		
+		System.err.println("KAPP GETTING SESSION SCOPE, isCustom = " + customSessionManager);
 		if (customSessionManager != null) {
 			isNew.setValue(true); //cuz the RefBoolean type makes me queasy, and this is done below.
 			return customSessionManager.getSession(pc);

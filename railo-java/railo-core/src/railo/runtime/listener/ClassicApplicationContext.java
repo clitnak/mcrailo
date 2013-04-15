@@ -19,6 +19,7 @@ import railo.runtime.net.s3.PropertiesImpl;
 import railo.runtime.op.Duplicator;
 import railo.runtime.orm.ORMConfiguration;
 import railo.runtime.rest.RestSettings;
+import railo.runtime.type.Struct;
 import railo.runtime.type.UDF;
 import railo.runtime.type.dt.TimeSpan;
 import railo.runtime.type.scope.Scope;
@@ -34,6 +35,7 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	private String name;
 	private String sessionClusterKey;
 	private String sessionManagerClass;
+	private Struct sessionManagerConfig;
     private boolean setClientCookies;
     private boolean setDomainCookies;
     private boolean setSessionManagement;
@@ -464,6 +466,11 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	public void setSessionManagerClass(String sessionManagerClass) {
 		this.sessionManagerClass = sessionManagerClass;
 	}
+	
+	public void setSessionManagerConfig(Struct config) {
+		System.err.println("KAPP: Classic.setSessionConfig:" + config);
+		this.sessionManagerConfig = config;
+	}
 
 
 	/**
@@ -519,6 +526,11 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	
 	public String getSessionManagerClass() {
 		return sessionManagerClass;
+	}
+	
+	public Struct getSessionManagerConfig() {
+		System.out.println("KAPP: class.getSessionManagerConfig: " + sessionManagerConfig);
+		return sessionManagerConfig;
 	}
 
 	@Override

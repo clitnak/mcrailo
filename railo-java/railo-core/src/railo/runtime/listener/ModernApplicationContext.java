@@ -68,7 +68,8 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private static final Collection.Key BUFFER_OUTPUT = KeyImpl.intern("bufferOutput");
 	private static final Collection.Key SESSION_CLUSTER = KeyImpl.intern("sessionCluster");
 	private static final Collection.Key SESSION_CLUSTER_KEY = KeyImpl.intern("sessionClusterKey");
-	private static final Collection.Key SESSION_FACTORY_CLASS = KeyImpl.intern("sessionManagerClass");
+	private static final Collection.Key SESSION_MANAGER_CLASS = KeyImpl.intern("sessionManagerClass");
+	private static final Collection.Key SESSION_MANAGER_CONFIG = KeyImpl.intern("sessionManagerConfig");
 	private static final Collection.Key CLIENT_CLUSTER = KeyImpl.intern("clientCluster");
 
 	private static final Collection.Key DEFAULT_DATA_SOURCE = KeyImpl.intern("defaultdatasource");
@@ -106,6 +107,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private String sessionStorage;
 	private String sessionClusterKey;
 	private String sessionManagerClass;
+	private Struct sessionManagerConfig;
 	private String secureJsonPrefix="//";
 	private boolean secureJson; 
 	private Mapping[] mappings;
@@ -132,7 +134,8 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private boolean initSessionStorage;
 	private boolean initSessionCluster;
 	private boolean initSessionClusterKey;
-	private boolean initsessionManagerClass;
+	private boolean initSessionManagerClass;
+	private boolean initSessionManagerConfig;
 	private boolean initClientCluster;
 	private boolean initLoginStorage;
 	private boolean initSessionType;
@@ -428,15 +431,31 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	}
 	
 	public String getSessionManagerClass() {
-		if (!initsessionManagerClass) {
-			Object obj = get(component, SESSION_FACTORY_CLASS, null); 
+		if (!initSessionManagerClass) {
+			Object obj = get(component, SESSION_MANAGER_CLASS, null); 
 			if (obj != null) {
 				sessionManagerClass = Caster.toString(obj, sessionManagerClass);
 			}
-			initsessionManagerClass = true;
+			initSessionManagerClass = true;
 		}
 		
 		return sessionManagerClass;
+	}
+	
+	public Struct getSessionManagerConfig() {
+		System.err.println("KAPP: modern.getSessionManagerConfig " + initSessionManagerConfig);
+		if (!initSessionManagerConfig) {
+			Object obj = get(component, SESSION_MANAGER_CONFIG, null);
+			System.err.println("KAPP: modern.getSessionManagerConfig obj = " + obj);
+			if (obj != null) {
+				sessionManagerConfig = Caster.toStruct(obj, sessionManagerConfig); 
+			}
+			initSessionManagerConfig = true;
+		}
+		
+		System.err.println("KAPP: modern.getSessionManagerConfig " + this.initSessionManagerConfig + 
+				" , " + sessionManagerConfig);
+		return sessionManagerConfig;
 	}
 	
 	/**
@@ -860,9 +879,14 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 		this.initSessionClusterKey =true;
 	}
 	
-	public void setsessionManagerClass(String sessionManagerClass) {
+	public void setSessionManagerClass(String sessionManagerClass) {
 		this.sessionManagerClass = sessionManagerClass;
-		this.initsessionManagerClass = true;
+		this.initSessionManagerClass = true;
+	}
+	
+	public void setSessionManagerConfig(Struct config) {
+		this.sessionManagerConfig = config;
+		this.initSessionManagerConfig = true;
 	}
 
 	public void setS3(Properties s3) {
