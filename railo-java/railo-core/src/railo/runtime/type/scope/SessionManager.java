@@ -19,7 +19,7 @@ public abstract class SessionManager {
 		if (instance == null) {
 			Class<?> clazz = Class.forName(className);
 			//instance = (SessionManager) clazz.newInstance(); 
-			Constructor<?> ctor =  clazz.getConstructor(config.getClass());
+			Constructor<?> ctor =  clazz.getConstructor(Struct.class);
 			instance = (SessionManager) ctor.newInstance(config);
 		}
 		
