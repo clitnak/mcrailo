@@ -38,18 +38,18 @@ import railo.runtime.functions.dynamicEvaluation.Serialize;
 public class MongoSession implements Session {
 	
 	//STATICS
+	private static final int SESSION_TYPE = -1;
+	private static final String SESSION_TYPE_STR = "MongoSessionScope";
+	private static final long serialVersionUID = -6799439320357915754L;
+	private static final String STARTING_HIT_COUNT = "1";
+	private static final String ID_KEY = "_id";
+	
 	private static final Collection.Key CFID=KeyConstants._cfid;
 	private static final Collection.Key CFTOKEN=KeyConstants._cftoken;
 	private static final Collection.Key URL_TOKEN=KeyConstants._urltoken;
 	private static final Collection.Key LAST_VISIT=KeyConstants._lastvisit;
 	private static final Collection.Key HIT_COUNT=KeyConstants._hitcount;
 	private static final Collection.Key TIME_CREATED=KeyConstants._timecreated;
-	
-	private static final String ID_KEY = "_id";
-	private static final int SESSION_TYPE = -1;
-	private static final String SESSION_TYPE_STR = "MongoSessionScope";
-	private static final long serialVersionUID = -6799439320357915754L;
-	private static final String STARTING_HIT_COUNT = "1";
 	
 	private static final Set<Collection.Key> EXTRA_KEYS = new HashSet<Collection.Key>();
 	static {
@@ -94,11 +94,15 @@ public class MongoSession implements Session {
 		this.id = nextId();
 		
 		if (!sessionExists()) {
+			log("NEW session");
 			insertSession(makeNewSession());
+		} else {
+			log("EXISTS, session exists");
 		}
 	}
 	
 	private DBCollection setupCollection(DBCollection coll) {
+		coll.ensureIndex(new BasicDBObject(toDBKey(CFID),""));
 		coll.setWriteConcern(WriteConcern.SAFE); // this is the most consistent but has tradeoffs.  See mongogdb docs.
 		coll.setReadPreference(ReadPreference.PRIMARY);
 		return coll;
@@ -178,6 +182,8 @@ public class MongoSession implements Session {
 		for (String k : keys) {
 			log("remove keys, k = " + k);
 		}
+		
+		
 		return collection.update(sessionQuery, makeUnsetMultiObject(keys));
 	}
 	
@@ -320,7 +326,7 @@ public class MongoSession implements Session {
 			keys.add(KeyImpl.init(strKey));
 		}
 		
-		return (Collection.Key[]) keys.toArray();
+		return keys.toArray(new Collection.Key[]{});
 	}
 
 	@Override
@@ -342,10 +348,14 @@ public class MongoSession implements Session {
 
 	@Override
 	public void clear() {
-		Set<?> keysToClear = this.keySet();
-		log("keys to clear" + keysToClear.toString());
-		keysToClear.removeAll(EXTRA_KEYS);
+		Set<String> keysToClear = this.keySet();
+		for (Collection.Key k : EXTRA_KEYS) {
+			keysToClear.remove(toDBKey(k));
+		}
+		
 		keysToClear.remove(ID_KEY);
+		
+		log("keys to clear" + keysToClear.toString());
 		this.removeDBKeys(keysToClear.toArray(new String[]{}));
 	}
 	
