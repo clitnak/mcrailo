@@ -66,12 +66,7 @@ public class MongoSession implements Session {
 	private static int nextId() {
 		return ++idCounter;
 	}
-	
-	private static DBObject makeDBSessionQuery(String cfid) {
-		return QueryBuilder.start(CFID.getUpperString()).is(cfid).get();
-	}
-	
-	
+
 	//INSTANCE VARIABLES
 	private final int id;
 	private final String cfid;
@@ -94,10 +89,17 @@ public class MongoSession implements Session {
 		this.id = nextId();
 		
 		if (!sessionExists()) {
-			log("NEW session");
 			insertSession(makeNewSession());
-		} else {
-			log("EXISTS, session exists");
+		}
+	}
+		
+	private DBObject makeDBSessionQuery(String cfid) {
+		try {
+			return QueryBuilder.start(toDBKey(CFID)).is(serializeToString(cfid)).get();
+		}
+		catch (PageException e) {
+			e.printStackTrace();
+			return QueryBuilder.start(toDBKey(CFID)).is("'" + cfid + "'").get();
 		}
 	}
 	
@@ -113,12 +115,16 @@ public class MongoSession implements Session {
 	}
 	
 	private boolean sessionExists() {
-		return getDBValue(CFID) != null;
+		return collection.findOne(sessionQuery)  != null;
 	}
 	
 	private void insertSession(Map<String, String> session) {
-		log("insert session " + session.toString());
-		collection.insert(new BasicDBObject(session));
+		//instead of constructing a DBObject to insert here
+		//the following is done to ensure the default 
+		//session key value pairs and serialized like 
+		//all other session values.
+		collection.insert(sessionQuery);
+		putAll(session);
 	}
 	
 	private Map<String, String> makeNewSession() {
@@ -134,20 +140,16 @@ public class MongoSession implements Session {
 	}
 	
 	public WriteResult delete() {
-		log("delete session");
 		return collection.remove(this.sessionQuery);
 	}
 	
 	// MONGODB METHODS
 	private DBObject getDBSession() {
-		DBObject session =  collection.findOne(sessionQuery);
-		log("SESSION " + session);
-		//if null make new session?
-		return session;
+		return collection.findOne(sessionQuery);
 	}
 	
 	private Object getDBValue(String key) {
-		log("getting value for " + key);
+		key = toDBKey(key);
 		DBObject dbSession = collection.findOne(sessionQuery, new BasicDBObject(key, ""));
 		Object value = null;
 		if (dbSession != null) {
@@ -157,49 +159,39 @@ public class MongoSession implements Session {
 		return value;
 	}
 	
-	private Object getDBValue(Collection.Key key) {
-		return getDBValue(toDBKey(key));
-	}
-	
 	//throws PageException for serialization
 	private WriteResult updateDBKey(String key, Object val) throws PageException {
-		log("setting value for " + key);
-		return collection.update(sessionQuery, makeSetObject(key, val));
+		return collection.update(sessionQuery, makeSetObject(toDBKey(key), val));
 	}
 	
 	//throws PageException for serialization
-	private WriteResult updateDBMulti(Map data) throws PageException {
-		log("update multi " + data.toString());
+	private WriteResult updateDBMulti(Map<?,?> data) throws PageException {
 		return collection.update(sessionQuery, makeSetMultiObject(data));
 	}
 	
 	private WriteResult removeDBKey(String key) {
-		log("remove key " + key);
-		return collection.update(sessionQuery, makeUnsetObject(key));
+		return collection.update(sessionQuery, makeUnsetObject(toDBKey(key)));
 	}
 	
 	private WriteResult removeDBKeys(String[] keys) {
-		for (String k : keys) {
-			log("remove keys, k = " + k);
-		}
-		
-		
 		return collection.update(sessionQuery, makeUnsetMultiObject(keys));
 	}
 	
 	//throws PageException for serialization
 	private DBObject makeSetObject(String key, Object val) throws PageException {
-		return new BasicDBObject("$set", new BasicDBObject(key, serializeToString(val)));
+		return new BasicDBObject("$set", new BasicDBObject(toDBKey(key), serializeToString(val)));
 	}
 	
-	private DBObject makeSetMultiObject(Map data) throws PageException {
+	private DBObject makeSetMultiObject(Map<?,?> data) throws PageException {
 		return new BasicDBObject("$set", new BasicDBObject(serializeAllValues(data)));
 	}
 	
-	private Map serializeAllValues(Map data) throws PageException {
-		Map serializedData = new HashMap();
+	private Map<String, String> serializeAllValues(Map<?,?> data) throws PageException {
+		Map<String, String> serializedData = new HashMap<String, String>();
+		
 		for (Object key : data.keySet()) {
-			serializedData.put(key, serializeToString(data.get(key)));
+			String strKey = (key instanceof String) ? toDBKey((String) key) : serializeToString(key);
+			serializedData.put(strKey, serializeToString(data.get(key)));
 		}
 		
 		return serializedData;
@@ -210,10 +202,9 @@ public class MongoSession implements Session {
 	}
 	
 	private DBObject makeUnsetMultiObject(String[] keys) {
-		log("makeUnsetMultiObject " + keys.toString());
 		HashMap<String, String> deleteMap = new HashMap<String, String>();
 		for (String k : keys) {
-			deleteMap.put(k, "");
+			deleteMap.put(toDBKey(k), "");
 		}
 		
 		return new BasicDBObject("$unset", new BasicDBObject(deleteMap));
@@ -234,6 +225,10 @@ public class MongoSession implements Session {
 	
 	private String toDBKey(Collection.Key key) {
 		return key.getUpperString();
+	}
+	
+	private String toDBKey(String key) {
+		return key.toUpperCase();
 	}
 	
 	private Double getAsDouble(Collection.Key key) {
@@ -355,12 +350,16 @@ public class MongoSession implements Session {
 		
 		keysToClear.remove(ID_KEY);
 		
-		log("keys to clear" + keysToClear.toString());
 		this.removeDBKeys(keysToClear.toArray(new String[]{}));
 	}
 	
 	@Override
 	public Object get(String key) throws PageException {
+		Object val = getDBValue(key);
+		if (val == null) {
+			return null;
+		}
+		log(val.toString());
 		return deserializeFromString(getDBValue(key));
 	}
 
