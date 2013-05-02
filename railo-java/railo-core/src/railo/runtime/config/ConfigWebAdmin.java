@@ -8,6 +8,7 @@ import java.net.URL;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.zip.ZipInputStream;
 
 import javax.servlet.ServletException;
 
@@ -318,15 +319,23 @@ public final class ConfigWebAdmin {
     	store(config);
     }
     
+
+    private synchronized void _store(ConfigImpl config) throws PageException, SAXException, ClassException, IOException, TagLibException, FunctionLibException  {
+    	_reload(config, true);
+    }
+    
     private synchronized void store(ConfigImpl config) throws PageException, SAXException, ClassException, IOException, TagLibException, FunctionLibException  {
     	reload(config, true);
     }
     
-
     private synchronized void reload(ConfigImpl config, boolean storeInMemoryData) throws PageException, SAXException, ClassException, IOException, TagLibException, FunctionLibException  {
+    	if(storeInMemoryData)checkWriteAccess();
+    	_reload(config, storeInMemoryData);
+    }
+
+    private synchronized void _reload(ConfigImpl config, boolean storeInMemoryData) throws PageException, SAXException, ClassException, IOException, TagLibException, FunctionLibException  {
     	renameOldstyleCFX();
     	
-    	if(storeInMemoryData)checkWriteAccess();
     	
         createAbort();
         if(config instanceof ConfigServerImpl) {
@@ -525,6 +534,26 @@ public final class ConfigWebAdmin {
 	      	}
         }
     }
+    
+    static void updateMapping(ConfigImpl config, String virtual, String physical,String archive,String primary, boolean trusted, boolean toplevel) throws SAXException, IOException, PageException {
+    	ConfigWebAdmin admin = new ConfigWebAdmin(config, null);
+    	admin._updateMapping(virtual, physical, archive, primary, trusted, toplevel);
+    	admin._store(config);
+    }
+    
+
+    static void updateComponentMapping(ConfigImpl config, String virtual, String physical,String archive,String primary, boolean trusted) throws SAXException, IOException, PageException {
+    	ConfigWebAdmin admin = new ConfigWebAdmin(config, null);
+    	admin._updateComponentMapping(virtual, physical, archive, primary, trusted);
+    	admin._store(config);
+    }
+    
+
+    static void updateCustomTagMapping(ConfigImpl config, String virtual, String physical,String archive,String primary, boolean trusted) throws SAXException, IOException, PageException {
+    	ConfigWebAdmin admin = new ConfigWebAdmin(config, null);
+    	admin._updateCustomTag(virtual, physical, archive, primary, trusted);
+    	admin._store(config);
+    }
 
     /**
      * insert or update a mapping on system
@@ -539,11 +568,16 @@ public final class ConfigWebAdmin {
      */
     public void updateMapping(String virtual, String physical,String archive,String primary, boolean trusted, boolean toplevel) throws ExpressionException, SecurityException {
     	checkWriteAccess();
+    	_updateMapping(virtual, physical, archive, primary, trusted, toplevel);
+    }
+    private void _updateMapping(String virtual, String physical,String archive,String primary, boolean trusted, boolean toplevel) throws ExpressionException, SecurityException {
     	boolean hasAccess=ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_MAPPING);
         
         virtual=virtual.trim(); 
-        physical=physical.trim();
-        archive=archive.trim();
+        if(physical==null) physical="";
+        else physical=physical.trim();
+        if(archive==null) archive="";
+        else archive=archive.trim();
         primary=primary.trim();
         if(!hasAccess)
             throw new SecurityException("no access to update mappings");
@@ -561,7 +595,7 @@ public final class ConfigWebAdmin {
         boolean isArchive=primary.equalsIgnoreCase("archive");
         
         if((physical.length()+archive.length())==0)
-            throw new ExpressionException("physical or archive must gave a value");
+            throw new ExpressionException("physical or archive must have a value");
         
         if(isArchive && archive.length()==0 ) isArchive=false;
         //print.ln("isArchive:"+isArchive);
@@ -572,7 +606,6 @@ public final class ConfigWebAdmin {
         
         
         Element mappings=_getRootElement("mappings");
-        
         // Update
         Element[] children = ConfigWebFactory.getChildren(mappings,"mapping");
       	for(int i=0;i<children.length;i++) {
@@ -765,7 +798,7 @@ public final class ConfigWebAdmin {
         Element mappings=_getRootElement("custom-tag");
         Element[] children = ConfigWebFactory.getChildren(mappings,"mapping");
       	for(int i=0;i<children.length;i++) {
-      	    if(virtual.equals("/"+i))mappings.removeChild(children[i]);
+      	    if(virtual.equals(createVirtual(children[i])))mappings.removeChild(children[i]);
       	}
     }
     
@@ -774,8 +807,10 @@ public final class ConfigWebAdmin {
     	
         Element mappings=_getRootElement("component");
         Element[] children = ConfigWebFactory.getChildren(mappings,"mapping");
+        String v;
       	for(int i=0;i<children.length;i++) {
-      	    if(virtual.equals("/"+i))mappings.removeChild(children[i]);
+      		v=createVirtual(children[i]);
+        	if(virtual.equals(v))mappings.removeChild(children[i]);
       	}
     }
     
@@ -794,11 +829,17 @@ public final class ConfigWebAdmin {
      */
     public void updateCustomTag(String virtual,String physical,String archive,String primary, boolean trusted) throws ExpressionException, SecurityException {
     	checkWriteAccess();
+    	_updateCustomTag(virtual, physical, archive, primary, trusted);
+    }
+    private void _updateCustomTag(String virtual,String physical,String archive,String primary, boolean trusted) throws ExpressionException, SecurityException {
     	boolean hasAccess=ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_CUSTOM_TAG);
         if(!hasAccess)
             throw new SecurityException("no access to change custom tag settings");
+        if(physical==null)physical="";
+        if(archive==null)archive="";
         
         //virtual="/custom-tag";
+        if(StringUtil.isEmpty(virtual))virtual=createVirtual(physical,archive);
         
         boolean isArchive=primary.equalsIgnoreCase("archive");
         if(isArchive && archive.length()==0 ) {
@@ -811,11 +852,14 @@ public final class ConfigWebAdmin {
         Element mappings=_getRootElement("custom-tag");
         
         // Update
+        String v;
         Element[] children = ConfigWebFactory.getChildren(mappings,"mapping");
         for(int i=0;i<children.length;i++) {
-      	    if(("/"+i).equals(virtual)) {
-	      		Element el=children[i];
-	      		el.setAttribute("physical",physical);
+        	Element el=children[i];
+      		v=createVirtual(el);
+        	if(v.equals(virtual)) {
+        		el.setAttribute("virtual",v);
+        		el.setAttribute("physical",physical);
 	      		el.setAttribute("archive",archive);
 	      		el.setAttribute("primary",primary.equalsIgnoreCase("archive")?"archive":"physical");
 	      		el.setAttribute("trusted",Caster.toString(trusted));
@@ -830,17 +874,20 @@ public final class ConfigWebAdmin {
   		if(archive.length()>0)el.setAttribute("archive",archive);
   		el.setAttribute("primary",primary.equalsIgnoreCase("archive")?"archive":"physical");
   		el.setAttribute("trusted",Caster.toString(trusted));
+  		el.setAttribute("virtual",virtual);
     }
     
-
     public void updateComponentMapping(String virtual,String physical,String archive,String primary, boolean trusted) throws ExpressionException, SecurityException {
     	checkWriteAccess();
-    	//boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_CUSTOM_TAG);
-        //if(!hasAccess)
-        //    throw new SecurityException("no access to change custom tag settings");
-        
-        //virtual="/custom-tag";
+    	_updateComponentMapping(virtual, physical, archive, primary, trusted);
+    }	
+    private void _updateComponentMapping(String virtual,String physical,String archive,String primary, boolean trusted) throws ExpressionException {
     	primary=primary.equalsIgnoreCase("archive")?"archive":"physical";
+        if(physical==null)physical="";
+        else physical=physical.trim();
+        
+    	if(archive==null)archive="";
+        else archive=archive.trim();
         
         boolean isArchive=primary.equalsIgnoreCase("archive");
         if(isArchive && archive.length()==0 ) {
@@ -854,7 +901,7 @@ public final class ConfigWebAdmin {
         Element[] children = ConfigWebFactory.getChildren(mappings,"mapping");
         Element el;
         
-        // ignore when exists
+        /* ignore when exists
         for(int i=0;i<children.length;i++) {
       		el=children[i];
       	    if(el.getAttribute("physical").equals(physical) &&
@@ -863,14 +910,17 @@ public final class ConfigWebAdmin {
       	    		el.getAttribute("trusted").equals(Caster.toString(trusted))){
       	    	return;
   			}
-      	}
+      	}*/
         
         
         // Update
+        String v;
         for(int i=0;i<children.length;i++) {
-      	    if(("/"+i).equals(virtual)) {
-	      		el=children[i];
-	      		el.setAttribute("physical",physical);
+        	el=children[i];
+        	v=createVirtual(el); // if there is no virtual defintion (old records), we use the position
+      		if(v.equals(virtual)) {
+      			el.setAttribute("virtual",v); // set to make sure it exists for the future
+      			el.setAttribute("physical",physical);
 	      		el.setAttribute("archive",archive);
 	      		el.setAttribute("primary",primary.equalsIgnoreCase("archive")?"archive":"physical");
 	      		el.setAttribute("trusted",Caster.toString(trusted));
@@ -885,12 +935,24 @@ public final class ConfigWebAdmin {
   		if(archive.length()>0)el.setAttribute("archive",archive);
   		el.setAttribute("primary",primary.equalsIgnoreCase("archive")?"archive":"physical");
   		el.setAttribute("trusted",Caster.toString(trusted));
+  		el.setAttribute("virtual",virtual);
     }
 
     
 
 
-    /**
+    public static String createVirtual(Element el) {
+    	String str = el.getAttribute("virtual");
+    	if(!StringUtil.isEmpty(str)) return str;
+    	
+    	return  createVirtual(el.getAttribute("physical"),el.getAttribute("archive"));
+	}
+    public static String createVirtual(String physical,String archive) {
+    	return  "/"+MD5.getDigestAsString(physical+":"+archive,"");
+	}
+
+
+	/**
      * insert or update a Java CFX Tag
      * @param name
      * @param strClass
@@ -3434,13 +3496,26 @@ public final class ConfigWebAdmin {
 		updateLD(config.getFldFile(),resFld);
 	}
 	
-	public void updateLD(Resource dir,Resource res) throws IOException {
+	private void updateLD(Resource dir,Resource res) throws IOException {
 		if(!dir.exists())dir.createDirectory(true);
     	
     	Resource file = dir.getRealResource(res.getName());
     	if(file.length()!=res.length()){
 			ResourceUtil.copy(res, file);
 		}
+	}
+	
+	static void updateTLD(Config config,InputStream is,String name, boolean closeStream) throws IOException {
+		updateLD(config.getTldFile(),is,name,closeStream);
+	}
+	static void updateFLD(Config config,InputStream is,String name, boolean closeStream) throws IOException {
+		updateLD(config.getFldFile(),is,name,closeStream);
+	}
+	
+	private static void updateLD(Resource dir,InputStream is,String name, boolean closeStream) throws IOException {
+		if(!dir.exists())dir.createDirectory(true);
+    	Resource file = dir.getRealResource(name);
+    	IOUtil.copy(is, file.getOutputStream(), closeStream, true);
 	}
 
 	public void removeTLD(String name) throws IOException {
@@ -3460,6 +3535,9 @@ public final class ConfigWebAdmin {
 	}
 
 	public void updateJar(Resource resJar) throws IOException {
+		updateJar(config, resJar);
+	}
+	private static void updateJar(Config config, Resource resJar) throws IOException {
 		Resource lib = config.getConfigDir().getRealResource("lib");
 		if(!lib.exists())lib.mkdir();
     	
@@ -3468,10 +3546,20 @@ public final class ConfigWebAdmin {
 		if(fileLib.length()!=resJar.length()){
 			IOUtil.closeEL(config.getClassLoader());
 			ResourceUtil.copy(resJar, fileLib);
-			ConfigWebFactory.reloadLib(this.config);
+			ConfigWebFactory.reloadLib((ConfigImpl) config);
 		}
 	}
-
+	
+	static void updateJar(Config config, InputStream is, String name, boolean closeStream) throws IOException {
+		Resource lib = config.getConfigDir().getRealResource("lib");
+		if(!lib.exists())lib.mkdir();
+    	
+		Resource fileLib = lib.getRealResource(name);
+		
+		IOUtil.closeEL(config.getClassLoader());
+		IOUtil.copy(is, fileLib.getOutputStream(), closeStream, true);
+		ConfigWebFactory.reloadLib((ConfigImpl) config);
+	}
 
 	public void updateLogSettings(String name, int level,String virtualpath, int maxfile, int maxfilesize) throws ApplicationException {
 		name=name.toLowerCase().trim();
@@ -3856,4 +3944,29 @@ public final class ConfigWebAdmin {
     	
     	
 	}
+
+	
+	static void updateContext(ConfigImpl config,InputStream is,String realpath, boolean closeStream) throws PageException, IOException, SAXException {
+    	ConfigWebAdmin admin = new ConfigWebAdmin(config, null);
+    	admin._updateContext(config, is, realpath, closeStream);
+    }
+
+	private void _updateContext(Config config,InputStream is,String realpath, boolean closeStream) throws PageException, IOException, SAXException {
+    	if(config instanceof ConfigServer) {
+    		ConfigWeb[] webs = ((ConfigServer)config).getConfigWebs();
+    		for(int i=0;i<webs.length;i++){
+    			_updateContext(webs[i], is,realpath,closeStream);
+    		}
+    		return;
+    	}
+		
+    	// ConfigWeb
+    	Resource trg = config.getConfigDir().getRealResource("context").getRealResource(realpath);
+        if(trg.exists()) trg.remove(true);
+        Resource p = trg.getParentResource();
+        if(!p.isDirectory()) p.createDirectory(true); {
+            IOUtil.copy(is, trg, closeStream);
+        }
+        _store((ConfigImpl)config);
+    }
 }

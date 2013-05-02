@@ -22,6 +22,7 @@ import javax.servlet.jsp.tagext.Tag;
 
 import railo.commons.collections.HashTable;
 import railo.commons.db.DBUtil;
+import railo.commons.digest.MD5;
 import railo.commons.io.CompressUtil;
 import railo.commons.io.IOUtil;
 import railo.commons.io.SystemUtil;
@@ -34,6 +35,8 @@ import railo.commons.io.log.LogUtil;
 import railo.commons.io.res.Resource;
 import railo.commons.io.res.filter.DirectoryResourceFilter;
 import railo.commons.io.res.filter.ExtensionResourceFilter;
+import railo.commons.io.res.filter.LogResourceFilter;
+import railo.commons.io.res.filter.NotResourceFilter;
 import railo.commons.io.res.filter.OrResourceFilter;
 import railo.commons.io.res.filter.ResourceFilter;
 import railo.commons.io.res.util.ResourceUtil;
@@ -212,13 +215,13 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     private ConfigWebAdmin admin;
     private ConfigImpl config;
     
-    private ResourceFilter filter=
+    private static final ResourceFilter FILTER_CFML_TEMPLATES=new LogResourceFilter(
         new OrResourceFilter(new ResourceFilter[]{
                 new DirectoryResourceFilter(),
                 new ExtensionResourceFilter("cfm"),
                 new ExtensionResourceFilter("cfc"),
                 new ExtensionResourceFilter("cfml")
-        });
+        }));
 	private AdminSync adminSync;
 	
     
@@ -782,7 +785,8 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     	String strFile = getString("admin",action,"file");
     	Resource file = ResourceUtil.toResourceNotExisting(pageContext, strFile);
     	
-    	boolean secure = getBoolV("secure", false);
+    	boolean addCFMLFiles = getBoolV("addCFMLFiles", true);
+    	boolean addNoneCFMLFiles=getBoolV("addNoneCFMLFiles", true);
     	
     	// compile
     	Mapping mapping = doCompileMapping(mappingType,virtual, true);
@@ -798,55 +802,78 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     	try {
     		if(file.exists())file.delete();
     		if(!file.exists())file.createFile(true);
-        	//Resource ra = ResourceUtil.toResourceNotExisting(pageContext, "zip://"+file.getPath());
-        	//ResourceUtil.copyRecursive(classRoot, ra);
-    		if(mappingType==MAPPING_CFC)filter=new ExtensionResourceFilter(new String[]{"class","cfc","MF"},true,true);
-    		else filter=new ExtensionResourceFilter(new String[]{"class","cfm","cfml","cfc","MF"},true,true);
-			
+        	
+    		ResourceFilter filter;
+    		
+    		
+    		// include everything, no filter needed
+    		if(addCFMLFiles && addNoneCFMLFiles)filter=null; 
+    		// CFML Files but no other files
+    		else if(addCFMLFiles) {
+    			if(mappingType==MAPPING_CFC)filter=new ExtensionResourceFilter(new String[]{"class","cfc","MF"},true,true);
+	    		else filter=new ExtensionResourceFilter(new String[]{"class","cfm","cfml","cfc","MF"},true,true);
+    		}
+    		// No CFML Files, but all other files
+    		else if(addNoneCFMLFiles) {
+    			filter=new NotResourceFilter(new ExtensionResourceFilter(new String[]{"cfm","cfml","cfc"},false,true));
+    		}
+    		// no files at all
+    		else  {
+    			filter=new ExtensionResourceFilter(new String[]{"class","MF"},true,true);
+    		}
+    		
+    		
     		// create manifest
     		StringBuilder manifest=new StringBuilder();
     		
-    		manifest.append("Mapping-Type: \"");
+    		// id
+    		manifest.append("mapping-id: \"");
+			manifest.append(MD5.getDigestAsString(mapping.getStrPhysical()));
+    		manifest.append("\"\n");
+    		
+    		
+    		manifest.append("mapping-type: \"");
     		if(mappingType==MAPPING_CFC)manifest.append("cfc");
     		else if(mappingType==MAPPING_CT)manifest.append("ct");
     		else manifest.append("regular");
     		manifest.append("\"\n");
     		
-    		if(mappingType==MAPPING_REGULAR) {
-    			manifest.append("Mapping-Virtual-Path: \"");
-    			manifest.append(mapping.getVirtual());
-        		manifest.append("\"\n");
-    		}
+    		manifest.append("mapping-virtual-path: \"");
+    		manifest.append(mapping.getVirtual());
+        	manifest.append("\"\n");
+    		
+    		// Hidden
+    		manifest.append("mapping-hidden: ");
+			manifest.append(mapping.isHidden());
+    		manifest.append("\n");
+    		// Physical First
+    		manifest.append("mapping-physical-first: ");
+			manifest.append(mapping.isPhysicalFirst());
+    		manifest.append("\n");
+    		// Readonly
+    		manifest.append("mapping-readonly: ");
+			manifest.append(mapping.isReadonly());
+    		manifest.append("\n");
+    		// Top Level
+    		manifest.append("mapping-top-level: ");
+			manifest.append(mapping.isTopLevel());
+    		manifest.append("\n");
+    		
+    		// Trusted
+    		manifest.append("mapping-trusted: ");
+			manifest.append(mapping.isTrusted());
+    		manifest.append("\n");
+    		
+    		
+
     		
     		mani.createFile(true);
     		IOUtil.write(mani, manifest.toString(), "UTF-8", false);
     		
 		// source files
     		Resource[] sources;
-			if(!secure) sources=new Resource[]{temp,mapping.getPhysical(),classRoot};
-			else sources=new Resource[]{temp,classRoot};
-				
-			/*ZipOutputStream zos = null;
-	        try {
-	        	zos = new ZipOutputStream(IOUtil.toBufferedOutputStream(file.getOutputStream()));
-	        	CompressUtil.compressZip(sources, zos, filter);
-	        	
-	        	// Manifest
-	        	ZipEntry ze=new ZipEntry("/META-INF2/MANIFEST.MF");
-	    		ze.setTime(System.currentTimeMillis());
-	    		zos.putNextEntry(ze);
-	            try {
-	                IOUtil.copy(new ByteArrayInputStream(manifest.toString().getBytes("UTF-8")),zos,false,false);
-	            } 
-	            finally {
-	                zos.closeEntry();
-	            }
-	        	
-	        	
-	        }
-	        finally {
-	            IOUtil.closeEL(zos);
-	        }*/
+			if(!addCFMLFiles && !addNoneCFMLFiles) sources=new Resource[]{temp,classRoot};
+			else sources=new Resource[]{temp,mapping.getPhysical(),classRoot};
 			
 			CompressUtil.compressZip(ResourceUtil.listResources(sources,filter), file, filter);
 			
@@ -947,8 +974,8 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     private void doCompileFile(Mapping mapping,Resource file,String path,Map<String,String> errors) throws PageException {
         if(ResourceUtil.exists(file)) {
             if(file.isDirectory()) {
-            	Resource[] files = file.listResources(filter);
-                for(int i=0;i<files.length;i++) {
+            	Resource[] files = file.listResources(FILTER_CFML_TEMPLATES);
+                if(files!=null)for(int i=0;i<files.length;i++) {
                     String p=path+'/'+files[i].getName();
                     //print.ln(files[i]+" - "+p);
                     doCompileFile(mapping,files[i],p,errors);
@@ -1827,7 +1854,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
      */
     private void doUpdateComponentMapping() throws PageException {
         admin.updateComponentMapping(
-                getString("virtual",""),
+        		getString("virtual",""),
                 getString("physical",""),
                 getString("archive",""),
                 getString("primary","physical"),
