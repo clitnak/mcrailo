@@ -8,10 +8,8 @@ import railo.runtime.exp.PageException;
 import railo.runtime.type.FunctionArgument;
 import railo.runtime.type.Struct;
 import railo.runtime.type.UDF;
-import railo.runtime.type.UDFPlus;
-import railo.runtime.type.util.UDFUtil;
 
-public class TOUDF extends TOObjects implements UDFPlus {
+public class TOUDF extends TOObjects implements UDF {
 
 	private UDF udf;
 	
@@ -54,11 +52,6 @@ public class TOUDF extends TOObjects implements UDFPlus {
 			throws PageException {
 		log(null);
 		return udf.getDefaultValue(pc, index);
-	}
-	@Override
-	public Object getDefaultValue(PageContext pc, int index, Object defaultValue) throws PageException {
-		log(null);
-		return UDFUtil.getDefaultValue(pc, (UDFPlus)udf, index, defaultValue);
 	}
 
 
@@ -151,11 +144,6 @@ public class TOUDF extends TOObjects implements UDFPlus {
 	public PageSource getPageSource() {
 		log(null);
 		return udf.getPageSource();
-	}
-	
-	public int getIndex(){
-		log(null);
-		return ((UDFPlus)udf).getIndex();
 	}
 
 

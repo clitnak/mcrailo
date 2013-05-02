@@ -49,11 +49,6 @@ public final class UDFGetterProperty extends UDFGSProperty {
 	public Object getDefaultValue(PageContext pc, int index) throws PageException {
 		return null;
 	}
-	
-	@Override
-	public Object getDefaultValue(PageContext pc, int index, Object defaultValue) throws PageException {
-		return defaultValue;
-	}
 
 	@Override
 	public String getReturnTypeAsString() {

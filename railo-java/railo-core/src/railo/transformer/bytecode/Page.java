@@ -18,7 +18,6 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 
-import railo.print;
 import railo.commons.io.res.Resource;
 import railo.commons.lang.NumberUtil;
 import railo.commons.lang.StringUtil;
@@ -33,7 +32,6 @@ import railo.runtime.type.util.KeyConstants;
 import railo.transformer.bytecode.expression.Expression;
 import railo.transformer.bytecode.extern.StringExternalizerWriter;
 import railo.transformer.bytecode.literal.LitString;
-import railo.transformer.bytecode.literal.Null;
 import railo.transformer.bytecode.statement.Argument;
 import railo.transformer.bytecode.statement.HasBodies;
 import railo.transformer.bytecode.statement.HasBody;
@@ -64,8 +62,7 @@ public final class Page extends BodyBase {
 	public void doFinalize(BytecodeContext bc) {
 		ExpressionUtil.visitLine(bc, getEnd());
 	}
-	
-	public static final Type NULL = Type.getType(railo.runtime.type.Null.class);
+
 	public static final Type KEY_IMPL = Type.getType(KeyImpl.class);
 	public static final Type KEY_CONSTANTS = Type.getType(KeyConstants.class);
 	public static final Method KEY_INIT = new Method(
@@ -175,16 +172,10 @@ public final class Page extends BodyBase {
 			new Type[]{Types.PAGE_CONTEXT, Types.INT_VALUE}
 			);
 
-	/*private static final Method UDF_DEFAULT_VALUE = new Method(
-			"udfDefaultValue",
-			Types.OBJECT,
-			new Type[]{Types.PAGE_CONTEXT, Types.INT_VALUE, Types.INT_VALUE}
-			);*/
-	
 	private static final Method UDF_DEFAULT_VALUE = new Method(
 			"udfDefaultValue",
 			Types.OBJECT,
-			new Type[]{Types.PAGE_CONTEXT, Types.INT_VALUE, Types.INT_VALUE,Types.OBJECT}
+			new Type[]{Types.PAGE_CONTEXT, Types.INT_VALUE, Types.INT_VALUE}
 			);
 
 	private static final Method NEW_COMPONENT_IMPL_INSTANCE = new Method(
@@ -357,7 +348,6 @@ public final class Page extends BodyBase {
 	private static final boolean ADD_C33 = false;
 	//private static final String SUB_CALL_UDF = "udfCall";
 	private static final String SUB_CALL_UDF = "_";
-	private static final int DEFAULT_VALUE = 3;
 		
     private int version;
     private long lastModifed;
@@ -410,7 +400,7 @@ public final class Page extends BodyBase {
         getImports(imports, this); 
     	
     	// parent
-    	String parent="railo/runtime/PagePlus";
+    	String parent="railo/runtime/Page";
     	if(isComponent()) parent="railo/runtime/ComponentPage";
     	else if(isInterface()) parent="railo/runtime/InterfacePage";
     	
@@ -596,10 +586,9 @@ public final class Page extends BodyBase {
         if(isInterface()) {}
         else if(functions.length<=10) {
         	adapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC+Opcodes.ACC_FINAL , UDF_DEFAULT_VALUE, null, new Type[]{Types.PAGE_EXCEPTION}, cw);
-        	if(functions.length>0)
-        		writeUdfDefaultValueInner(new BytecodeContext(statConstr,constr,this,externalizer,keys,cw,name,adapter,UDF_DEFAULT_VALUE,writeLog(),supressWSbeforeArg),functions,0,functions.length);
+        	if(functions.length>0)writeUdfDefaultValueInner(new BytecodeContext(statConstr,constr,this,externalizer,keys,cw,name,adapter,UDF_DEFAULT_VALUE,writeLog(),supressWSbeforeArg),functions,0,functions.length);
             
-            adapter.loadArg(DEFAULT_VALUE);
+            ASMConstants.NULL(adapter);
         	adapter.returnValue();
             adapter.endMethod();
         }
@@ -623,9 +612,7 @@ public final class Page extends BodyBase {
 		        	adapter.visitVarInsn(Opcodes.ALOAD, 1);
 		        	adapter.visitVarInsn(Opcodes.ILOAD, 2);
 		        	adapter.visitVarInsn(Opcodes.ILOAD, 3);
-		        	adapter.visitVarInsn(Opcodes.ALOAD, 4);
-		        	
-		        	adapter.visitMethodInsn(Opcodes.INVOKEVIRTUAL, name, "udfDefaultValue"+(++count), "(Lrailo/runtime/PageContext;IILjava/lang/Object;)Ljava/lang/Object;");
+		        	adapter.visitMethodInsn(Opcodes.INVOKEVIRTUAL, name, "udfDefaultValue"+(++count), "(Lrailo/runtime/PageContext;II)Ljava/lang/Object;");
 		        	adapter.visitInsn(Opcodes.ARETURN);//adapter.returnValue();
 		        	
 	        	cv.visitWhenAfterBody(bc);
@@ -639,12 +626,11 @@ public final class Page extends BodyBase {
         count=0;
         Method innerDefaultValue;
         for(int i=0;i<functions.length;i+=10) {
-        	innerDefaultValue = new Method("udfDefaultValue"+(++count),Types.OBJECT,new Type[]{Types.PAGE_CONTEXT, Types.INT_VALUE, Types.INT_VALUE,Types.OBJECT});
+        	innerDefaultValue = new Method("udfDefaultValue"+(++count),Types.OBJECT,new Type[]{Types.PAGE_CONTEXT, Types.INT_VALUE, Types.INT_VALUE});
         	adapter = new GeneratorAdapter(Opcodes.ACC_PRIVATE+Opcodes.ACC_FINAL , innerDefaultValue, null, new Type[]{Types.PAGE_EXCEPTION}, cw);
         	writeUdfDefaultValueInner(new BytecodeContext(statConstr,constr,this,externalizer,keys,cw,name,adapter,innerDefaultValue,writeLog(),supressWSbeforeArg), functions, i, i+10>functions.length?functions.length:i+10);
         	
-        	adapter.loadArg(DEFAULT_VALUE);
-        	//adapter.visitInsn(Opcodes.ACONST_NULL);
+        	adapter.visitInsn(Opcodes.ACONST_NULL);
 	        adapter.returnValue();
 	        adapter.endMethod();
         }
@@ -964,22 +950,22 @@ public final class Page extends BodyBase {
 	private void writeOutFunctionDefaultValueInnerInner(BytecodeContext bc, Function function) throws BytecodeException {
 		GeneratorAdapter adapter = bc.getAdapter();
 		
-		List<Argument> args = function.getArguments();
+		List args = function.getArguments();
 		
 		if(args.size()==0) {
-			adapter.loadArg(DEFAULT_VALUE);
+			adapter.visitInsn(Opcodes.ACONST_NULL);
 			adapter.returnValue();
 			return;
 		}
 			
-		Iterator<Argument> it = args.iterator();
+		Iterator it = args.iterator();
 		Argument arg;
 		ConditionVisitor cv=new ConditionVisitor();
 		DecisionIntVisitor div;
 		cv.visitBefore();
 		int count=0;
 		while(it.hasNext()) {
-			arg=it.next();
+			arg=(Argument) it.next();
 			cv.visitWhenBeforeExpr();
 				div=new DecisionIntVisitor();
 				div.visitBegin();
@@ -989,16 +975,9 @@ public final class Page extends BodyBase {
 				div.visitEnd(bc);
 			cv.visitWhenAfterExprBeforeBody(bc);
 				Expression defaultValue = arg.getDefaultValue();
-				if(defaultValue!=null) {
-					/*if(defaultValue instanceof Null) {
-						adapter.invokeStatic(NULL, GET_INSTANCE);
-					}
-					else*/ 
-					defaultValue.writeOut(bc, Expression.MODE_REF);
-				}
+				if(defaultValue!=null) arg.getDefaultValue().writeOut(bc, Expression.MODE_REF);
 				else 
-					adapter.loadArg(DEFAULT_VALUE);
-					//adapter.visitInsn(Opcodes.ACONST_NULL);
+					adapter.visitInsn(Opcodes.ACONST_NULL);
 				adapter.returnValue();
 			cv.visitWhenAfterBody(bc);
 		}

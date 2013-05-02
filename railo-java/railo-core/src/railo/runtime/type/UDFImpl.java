@@ -10,17 +10,14 @@ import java.util.Map.Entry;
 
 import javax.servlet.jsp.tagext.BodyContent;
 
-import railo.print;
 import railo.commons.io.cache.Cache;
 import railo.commons.lang.CFTypes;
 import railo.commons.lang.SizeOf;
 import railo.commons.lang.StringUtil;
 import railo.runtime.Component;
 import railo.runtime.ComponentImpl;
-import railo.runtime.Page;
 import railo.runtime.PageContext;
 import railo.runtime.PageContextImpl;
-import railo.runtime.PagePlus;
 import railo.runtime.PageSource;
 import railo.runtime.cache.ram.RamCache;
 import railo.runtime.component.MemberSupport;
@@ -39,7 +36,6 @@ import railo.runtime.listener.ApplicationContextSupport;
 import railo.runtime.op.Caster;
 import railo.runtime.op.Decision;
 import railo.runtime.op.Duplicator;
-import railo.runtime.tag.util.DeprecatedUtil;
 import railo.runtime.type.Collection.Key;
 import railo.runtime.type.scope.Argument;
 import railo.runtime.type.scope.ArgumentIntKey;
@@ -55,7 +51,7 @@ import railo.runtime.writer.BodyContentUtil;
 /**
  * defines a abstract class for a User defined Functions
  */
-public class UDFImpl extends MemberSupport implements UDFPlus,Sizeable,Externalizable {
+public class UDFImpl extends MemberSupport implements UDF,Sizeable,Externalizable {
 	
 	private static final FunctionArgument[] EMPTY = new FunctionArgument[0];
 	private static final RamCache DEFAULT_CACHE=new RamCache();
@@ -127,8 +123,8 @@ public class UDFImpl extends MemberSupport implements UDFPlus,Sizeable,Externali
 			}
 			// argument not defined
 			else {
-				Object d=getDefaultValue(pc,i,NullSupportHelper.NULL());
-				if(d==NullSupportHelper.NULL()) { 
+				Object d=getDefaultValue(pc,i);
+				if(d==null) { 
 					if(funcArgs[i].isRequired()) {
 						throw new ExpressionException("The parameter "+funcArgs[i].getName()+" to function "+getFunctionName()+" is required but was not passed in.");
 					}
@@ -168,8 +164,8 @@ public class UDFImpl extends MemberSupport implements UDFPlus,Sizeable,Externali
 			
 			
 			// default argument or exception
-			Object defaultValue=getDefaultValue(pageContext,i,NullSupportHelper.NULL());//funcArgs[i].getDefaultValue();
-			if(defaultValue==NullSupportHelper.NULL()) { 
+			Object defaultValue=getDefaultValue(pageContext,i);//funcArgs[i].getDefaultValue();
+			if(defaultValue==null) { 
 				if(funcArgs[i].isRequired()) {
 					throw new ExpressionException("The parameter "+funcArgs[i].getName()+" to function "+getFunctionName()+" is required but was not passed in.");
 				}
@@ -433,7 +429,7 @@ public class UDFImpl extends MemberSupport implements UDFPlus,Sizeable,Externali
 			try {
 				Object oa=null;
                 try {
-                    oa = UDFUtil.getDefaultValue(pageContext, (UDFPlus)udf, i, null);//udf.getDefaultValue(pageContext,i,null);
+                    oa = udf.getDefaultValue(pageContext,i);
                 } catch (PageException e1) {
                 }
                 if(oa==null)oa="null";
@@ -569,14 +565,9 @@ public class UDFImpl extends MemberSupport implements UDFPlus,Sizeable,Externali
         return properties.arguments;
     }
 	
-	@Override
-	public Object getDefaultValue(PageContext pc,int index) throws PageException {
-    	return UDFUtil.getDefaultValue(pc,properties.pageSource,properties.index,index,null);
-    }
-    
     @Override
-	public Object getDefaultValue(PageContext pc,int index, Object defaultValue) throws PageException {
-    	return UDFUtil.getDefaultValue(pc,properties.pageSource,properties.index,index,defaultValue);
+	public Object getDefaultValue(PageContext pc,int index) throws PageException {
+    	return ComponentUtil.getPage(pc,properties.pageSource).udfDefaultValue(pc,properties.index,index);
     }
     // public abstract Object getDefaultValue(PageContext pc,int index) throws PageException;
 
@@ -712,10 +703,7 @@ public class UDFImpl extends MemberSupport implements UDFPlus,Sizeable,Externali
 		if(left==null) return right==null;
 		return left.equals(right);
 	}
-	
-	public int getIndex(){
-		return properties.index;
-	}
+
 	
 }
 
