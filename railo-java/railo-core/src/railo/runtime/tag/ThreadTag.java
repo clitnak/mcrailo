@@ -5,7 +5,7 @@ import java.util.Iterator;
 import railo.print;
 import railo.commons.io.SystemUtil;
 import railo.commons.lang.StringUtil;
-import railo.runtime.PagePlus;
+import railo.runtime.Page;
 import railo.runtime.PageContext;
 import railo.runtime.PageContextImpl;
 import railo.runtime.config.ConfigImpl;
@@ -255,7 +255,7 @@ public final class ThreadTag extends BodyTagImpl implements DynamicAttributes {
 		return EVAL_PAGE;
 	}
 	
-	public void register(PagePlus currentPage, int threadIndex) throws PageException	{
+	public void register(Page currentPage, int threadIndex) throws PageException	{
 		if(ACTION_RUN!=action) return;
 		
 		if(((PageContextImpl)pc).getParentPageContext()!=null)
