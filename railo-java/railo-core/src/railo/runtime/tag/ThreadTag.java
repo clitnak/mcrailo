@@ -2,9 +2,10 @@ package railo.runtime.tag;
 
 import java.util.Iterator;
 
+import railo.print;
 import railo.commons.io.SystemUtil;
 import railo.commons.lang.StringUtil;
-import railo.runtime.Page;
+import railo.runtime.PagePlus;
 import railo.runtime.PageContext;
 import railo.runtime.PageContextImpl;
 import railo.runtime.config.ConfigImpl;
@@ -254,7 +255,7 @@ public final class ThreadTag extends BodyTagImpl implements DynamicAttributes {
 		return EVAL_PAGE;
 	}
 	
-	public void register(Page currentPage, int threadIndex) throws PageException	{
+	public void register(PagePlus currentPage, int threadIndex) throws PageException	{
 		if(ACTION_RUN!=action) return;
 		
 		if(((PageContextImpl)pc).getParentPageContext()!=null)
@@ -306,6 +307,8 @@ public final class ThreadTag extends BodyTagImpl implements DynamicAttributes {
     	
     	ChildThread ct;
     	Threads ts;
+    	long start=System.currentTimeMillis(),_timeout=timeout>0?timeout:-1;
+    	
     	for(int i=0;i<names.length;i++) {
     		if(StringUtil.isEmpty(names[i],true))continue;
     		//PageContextImpl mpc=(PageContextImpl)getMainPageContext(pc);
@@ -316,10 +319,14 @@ public final class ThreadTag extends BodyTagImpl implements DynamicAttributes {
     		
     		if(ct.isAlive()) {
     			try {
-					if(timeout>0)ct.join(timeout);
+					if(_timeout!=-1)ct.join(_timeout);
 					else ct.join();
 				} 
     			catch (InterruptedException e) {}
+    		}
+    		if(_timeout!=-1){
+    			_timeout=_timeout-(System.currentTimeMillis()-start);
+    			if(_timeout<1) break;
     		}
     	}
     	
