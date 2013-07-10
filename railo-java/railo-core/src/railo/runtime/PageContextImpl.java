@@ -75,6 +75,7 @@ import railo.runtime.debug.DebugCFMLWriter;
 import railo.runtime.debug.DebugEntryTemplate;
 import railo.runtime.debug.Debugger;
 import railo.runtime.debug.DebuggerImpl;
+import railo.runtime.debug.DebuggerPro;
 import railo.runtime.dump.DumpUtil;
 import railo.runtime.dump.DumpWriter;
 import railo.runtime.engine.ExecutionLog;
@@ -195,7 +196,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	/**
 	 * Field <code>executionTime</code>
 	 */
-	protected int executionTime=0;
+	protected long executionTime=0;
 	
 	private HTTPServletRequestWrap req;
 	private HttpServletResponse rsp;
@@ -236,7 +237,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	private Client client;
 	private Application application;
 
-    private DebuggerImpl debugger=new DebuggerImpl();
+    private DebuggerPro debugger=new DebuggerImpl();
 	private long requestTimeout=-1;
 	private short enablecfoutputonly=0;
 	private int outputState;
@@ -437,7 +438,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
         this.servlet=servlet;
 
          // Writers
-        if(config.debugLogOutput()) {
+        if(config.debug() && config.debugLogOutput()) {
         	CFMLWriter w = config.getCFMLWriter(req,rsp);
         	w.setAllowCompression(false);
         	DebugCFMLWriter dcw = new DebugCFMLWriter(w);
@@ -769,7 +770,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	public void doInclude(PageSource[] sources, boolean runOnce) throws PageException {
     	// debug
 		if(!gatewayContext && config.debug()) {
-			int currTime=executionTime;
+			long currTime=executionTime;
             long exeTime=0;
             long time=System.nanoTime();
             
@@ -778,7 +779,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
             DebugEntryTemplate debugEntry=debugger.getEntry(this,currentPage.getPageSource());
             try {
                 addPageSource(currentPage.getPageSource(),true);
-                debugEntry.updateFileLoadTime((int)(System.nanoTime()-time));
+                debugEntry.updateFileLoadTime((System.nanoTime()-time));
                 exeTime=System.nanoTime();
 
                 currentPage.call(this);
@@ -798,8 +799,8 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 			}
 			finally {
 				includeOnce.add(currentPage.getPageSource());
-				int diff= ((int)(System.nanoTime()-exeTime)-(executionTime-currTime));
-			    executionTime+=(int)(System.nanoTime()-time);
+				long diff= ((System.nanoTime()-exeTime)-(executionTime-currTime));
+			    executionTime+=(System.nanoTime()-time);
 				debugEntry.updateExeTime(diff);
 				removeLastPageSource(true);
 			}	
@@ -1897,7 +1898,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 
     @Override
     public Debugger getDebugger() {
-		return debugger;
+		return config.debug()?debugger:null;
 	}
     
     @Override
@@ -2684,9 +2685,10 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 		this.thread=thread;
 	}
 
+	// FUTURE add as long
     @Override
     public int getExecutionTime() {
-        return executionTime;
+        return (int)executionTime;
     }
 
     @Override
