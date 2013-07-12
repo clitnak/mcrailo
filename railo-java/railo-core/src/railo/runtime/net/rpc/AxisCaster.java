@@ -368,7 +368,7 @@ public final class AxisCaster {
         int row;
         for(row=1;row<=recordcount;row++) {
             for(int i=0;i<columns.length;i++) {
-            	data[row-1][i]=_toAxisType(tm,null,null,columns[i].get(row),targetClass,done,namespace);
+            	data[row-1][i]=_toAxisType(tm,null,null,columns[i].get(row,null),targetClass,done,namespace);
             }
         }
     	
