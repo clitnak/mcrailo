@@ -292,6 +292,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         
         // update Password
         else if(action.equals("updatepassword")) {
+        	
             try {
             	((ConfigWebImpl)pageContext.getConfig()).setPassword(type!=TYPE_WEB,
                         getString("oldPassword",null),getString("admin",action,"newPassword",true));
@@ -305,7 +306,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 
         try {
             // Password
-            password = getString("password","");
+            password = ConfigWebFactory.hash(getString("password",""));
             // Config
             config=(ConfigImpl)pageContext.getConfig();
             if(type==TYPE_SERVER)
@@ -686,6 +687,10 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         else if(check("hasindividualsecurity",  ACCESS_FREE) && check2(ACCESS_READ            )) doHasIndividualSecurity();
         else if(check("resetpassword",          ACCESS_FREE) && check2(ACCESS_WRITE            )) doResetPassword();
         else if(check("stopThread", 			ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE  )) doStopThread();
+
+        else if(check("updateAuthKey",          ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE   )) doUpdateAuthKey();
+        else if(check("removeAuthKey",          ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE   )) doRemoveAuthKey();
+        else if(check("listAuthKey",          ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE   )) doListAuthKey();
         
         else if(check("createsecuritymanager",  ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE            )) doCreateSecurityManager();
         else if(check("getsecuritymanager",     ACCESS_NOT_WHEN_WEB) && check2(ACCESS_READ            )) doGetSecurityManager();
@@ -1037,6 +1042,26 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         store();
     }
 
+    private void doUpdateAuthKey() throws PageException {  
+        try {
+            admin.updateAuthKey(getString("key",null));
+        }catch (Exception e) {} 
+        store();
+    }
+    private void doRemoveAuthKey() throws PageException {  
+        try {
+            admin.removeAuthKeys(getString("key",null));
+        }catch (Exception e) {} 
+        store();
+    }
+    
+    private void doListAuthKey() throws PageException {
+    	ConfigServerImpl cs=(ConfigServerImpl) config;
+    	pageContext.setVariable(
+                 getString("admin",action,"returnVariable"),
+                 Caster.toArray(cs.getAuthenticationKeys()));
+    }
+
     /**
      * @throws PageException
      */
@@ -1258,7 +1283,6 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         pageContext.setVariable(
                 getString("admin",action,"returnVariable"),
                 password);
-        
     }
     
     /**

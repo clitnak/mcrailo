@@ -438,7 +438,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
         this.servlet=servlet;
 
          // Writers
-        if(config.debug() && config.debugLogOutput()) {
+        if(config.debugLogOutput()) {
         	CFMLWriter w = config.getCFMLWriter(req,rsp);
         	w.setAllowCompression(false);
         	DebugCFMLWriter dcw = new DebugCFMLWriter(w);
@@ -509,7 +509,8 @@ public final class PageContextImpl extends PageContext implements Sizeable {
     		if(!gatewayContext)config.getDebuggerPool().store(this, debugger);
     		debugger.reset();
     	}
-	
+		else ((DebuggerImpl)debugger).resetTraces(); // traces can alo be used when debugging is off
+		
 		this.serverPassword=null;
 
 		boolean isChild=parent!=null;
@@ -1714,6 +1715,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 			
 			ExceptionHandler.printStackTrace(this,pe);
 			ExceptionHandler.log(getConfig(),pe);
+
 			// error page exception
 			if(ep!=null) {
 				try {
@@ -1727,11 +1729,9 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 					if(Abort.isSilentAbort(t)) return;
 					pe=Caster.toPageException(t);
 				}
-				
 			}
 			
 			// error page request
-			
 			ep=errorPagePool.getErrorPage(pe,ErrorPageImpl.TYPE_REQUEST);
 			if(ep!=null) {
 				PageSource ps = ep.getTemplate();
@@ -1753,18 +1753,13 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 						return;
 					} catch (Throwable t) {
 						pe=Caster.toPageException(t);
-						
 					}
-					
 				}
-				else pe=new ApplicationException("The error page template for type request only works if the actual source file also exists . If the exception file is in an Railo archive (.rc/.rcs), you need to use type exception instead.");
+				else pe=new ApplicationException("The error page template for type request only works if the actual source file also exists. If the exception file is in an Railo archive (.rc/.rcs), you need to use type exception instead.");
 			}
 			
-			
 			try {
-				if(statusCode!=404)
-					forceWrite("<!-- Railo ["+Info.getVersionAsString()+"] Error -->");
-				
+
 				String template=getConfig().getErrorTemplate(statusCode);
 				if(!StringUtil.isEmpty(template)) {
 					try {
@@ -1780,8 +1775,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 				}
 				if(!Abort.isSilentAbort(pe))forceWrite(getConfig().getDefaultDumpWriter(DumpWriter.DEFAULT_RICH).toString(this,pe.toDumpData(this, 9999,DumpUtil.toDumpProperties()),true));
 			} 
-			catch (Exception e) { 
-			}
+			catch (Exception e) {}
 		}
 	}
 
@@ -1898,7 +1892,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 
     @Override
     public Debugger getDebugger() {
-		return config.debug()?debugger:null;
+		return debugger;
 	}
     
     @Override

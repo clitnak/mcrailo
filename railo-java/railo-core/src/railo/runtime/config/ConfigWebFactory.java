@@ -7,14 +7,17 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TimeZone;
 
 import javax.servlet.ServletConfig;
@@ -30,6 +33,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import railo.aprint;
+import railo.print;
 import railo.commons.collection.MapFactory;
 import railo.commons.date.TimeZoneUtil;
 import railo.commons.digest.Hash;
@@ -56,6 +60,7 @@ import railo.commons.lang.Md5;
 import railo.commons.lang.StringUtil;
 import railo.commons.lang.SystemOut;
 import railo.commons.net.URLDecoder;
+import railo.commons.net.URLEncoder;
 import railo.loader.TP;
 import railo.loader.engine.CFMLEngineFactory;
 import railo.runtime.CFMLFactory;
@@ -195,7 +200,7 @@ public final class ConfigWebFactory {
 				+ "===================================================================\n"
 
 		);
-
+		
 		boolean doNew = doNew(configDir);
 
 		Resource configFile = configDir.getRealResource("railo-web.xml.cfm");
@@ -914,7 +919,7 @@ public final class ConfigWebFactory {
 	}
 
 	static String createContentFromResource(Resource resource) throws IOException {
-		return IOUtil.toString(resource, null);
+		return IOUtil.toString(resource, (Charset)null);
 	}
 
 	static void createFileFromResourceCheckSizeDiffEL(String resource, Resource file) {
@@ -2547,7 +2552,21 @@ public final class ConfigWebFactory {
 		else if (configServer != null) {
 			config.setPassword(configServer.getDefaultPassword());
 		}
-
+		
+		if(config instanceof ConfigServerImpl) {
+			ConfigServerImpl csi=(ConfigServerImpl)config;
+			String keyList=railoConfiguration.getAttribute("auth-keys");
+			if(!StringUtil.isEmpty(keyList)) {
+				String[] keys = ListUtil.trimItems(ListUtil.toStringArray(ListUtil.toListRemoveEmpty(keyList, ',')));
+				for(int i=0;i<keys.length;i++){
+					keys[i]=URLDecoder.decode(keys[i], "UTF-8", true);
+				}
+				
+				csi.setAuthenticationKeys(keys);
+			}
+		}
+		
+		
 		// default password
 		if (config instanceof ConfigServerImpl) {
 			hpw=railoConfiguration.getAttribute("default-pw");
