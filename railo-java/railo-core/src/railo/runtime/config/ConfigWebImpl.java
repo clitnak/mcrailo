@@ -198,6 +198,10 @@ public final class ConfigWebImpl extends ConfigImpl implements ServletConfig, Co
     public String getServerId() {
         return configServer.getId();
     }
+    
+    public String getServerIdPro() {
+        return configServer.getIdPro();
+    }
 
     public String getServerSecurityKey() {
         return configServer.getSecurityKey();
