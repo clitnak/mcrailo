@@ -349,87 +349,93 @@ public class QueryImpl implements Query,Objects {
 
     private boolean fillResult(DatasourceConnection dc, ResultSet result, int maxrow, boolean closeResult,boolean createGeneratedKeys, TimeZone tz) throws SQLException, IOException, PageException {
     	if(result==null) return false;
-    	recordcount=0;
-		ResultSetMetaData meta = result.getMetaData();
-		columncount=meta.getColumnCount();
-		
-	// set header arrays
-		Collection.Key[] tmpColumnNames = new Collection.Key[columncount];
-		int count=0;
-		Collection.Key key;
-		String columnName;
-		for(int i=0;i<columncount;i++) {
-			columnName=QueryUtil.getColumnName(meta,i+1);
-			if(StringUtil.isEmpty(columnName))columnName="column_"+i;
-			key=KeyImpl.init(columnName);
-			int index=getIndexFrom(tmpColumnNames,key,0,i);
-			if(index==-1) {
-				tmpColumnNames[i]=key;
-				count++;
+    	try {
+	    	recordcount=0;
+			ResultSetMetaData meta = result.getMetaData();
+			columncount=meta.getColumnCount();
+			
+		// set header arrays
+			Collection.Key[] tmpColumnNames = new Collection.Key[columncount];
+			int count=0;
+			Collection.Key key;
+			String columnName;
+			for(int i=0;i<columncount;i++) {
+				columnName=QueryUtil.getColumnName(meta,i+1);
+				if(StringUtil.isEmpty(columnName))columnName="column_"+i;
+				key=KeyImpl.init(columnName);
+				int index=getIndexFrom(tmpColumnNames,key,0,i);
+				if(index==-1) {
+					tmpColumnNames[i]=key;
+					count++;
+				}
 			}
-		}
-		
-
-		columncount=count;
-		columnNames=new Collection.Key[columncount];
-		columns=new QueryColumnImpl[columncount];
-		Cast[] casts = new Cast[columncount];
-		
-	// get all used ints
-		int[] usedColumns=new int[columncount];
-		count=0;
-		for(int i=0;i<tmpColumnNames.length;i++) {
-			if(tmpColumnNames[i]!=null) {
-				usedColumns[count++]=i;
-			}
-		}	
-					
-	// set used column names
-		int[] types=new int[columns.length];
-		for(int i=0;i<usedColumns.length;i++) {
-            columnNames[i]=tmpColumnNames[usedColumns[i]];
-            columns[i]=new QueryColumnImpl(this,columnNames[i],types[i]=meta.getColumnType(usedColumns[i]+1));
-            
-            if(types[i]==Types.TIMESTAMP)	casts[i]=Cast.TIMESTAMP;
-            else if(types[i]==Types.TIME)	casts[i]=Cast.TIME;
-            else if(types[i]==Types.DATE)	casts[i]=Cast.DATE;
-            else if(types[i]==Types.CLOB)	casts[i]=Cast.CLOB;
-            else if(types[i]==Types.BLOB)	casts[i]=Cast.BLOB;
-            else if(types[i]==Types.BIT)	casts[i]=Cast.BIT;
-            else if(types[i]==Types.ARRAY)	casts[i]=Cast.ARRAY;
-            //else if(types[i]==Types.TINYINT)	casts[i]=Cast.ARRAY;
-            
-            else if(types[i]==CFTypes.OPAQUE){
-            	if(SQLUtil.isOracle(result.getStatement().getConnection()))
-            		casts[i]=Cast.ORACLE_OPAQUE;
-            	else 
-            		casts[i]=Cast.OTHER;
-				
-            }
-            else casts[i]=Cast.OTHER;
-		}
-		
-		if(createGeneratedKeys && columncount==1 && columnNames[0].equals(GENERATED_KEYS) && dc!=null && DataSourceUtil.isMSSQLDriver(dc)) {
-			columncount=0;
-			columnNames=null;
-			columns=null;
-			setGeneratedKeys(dc, result,tz);
-			return false;
-		}
-		
-
-	// fill data
-		//Object o;
-		while(result.next()) {
-			if(maxrow>-1 && recordcount>=maxrow) {
-				break;
-			}
+			
+	
+			columncount=count;
+			columnNames=new Collection.Key[columncount];
+			columns=new QueryColumnImpl[columncount];
+			Cast[] casts = new Cast[columncount];
+			
+		// get all used ints
+			int[] usedColumns=new int[columncount];
+			count=0;
+			for(int i=0;i<tmpColumnNames.length;i++) {
+				if(tmpColumnNames[i]!=null) {
+					usedColumns[count++]=i;
+				}
+			}	
+						
+		// set used column names
+			int[] types=new int[columns.length];
 			for(int i=0;i<usedColumns.length;i++) {
-			    columns[i].add(casts[i].toCFType(tz,types[i], result, usedColumns[i]+1));
+	            columnNames[i]=tmpColumnNames[usedColumns[i]];
+	            columns[i]=new QueryColumnImpl(this,columnNames[i],types[i]=meta.getColumnType(usedColumns[i]+1));
+	            
+	            if(types[i]==Types.TIMESTAMP)	casts[i]=Cast.TIMESTAMP;
+	            else if(types[i]==Types.TIME)	casts[i]=Cast.TIME;
+	            else if(types[i]==Types.DATE)	casts[i]=Cast.DATE;
+	            else if(types[i]==Types.CLOB)	casts[i]=Cast.CLOB;
+	            else if(types[i]==Types.BLOB)	casts[i]=Cast.BLOB;
+	            else if(types[i]==Types.BIT)	casts[i]=Cast.BIT;
+	            else if(types[i]==Types.ARRAY)	casts[i]=Cast.ARRAY;
+	            else if(types[i]==Types.BIGINT)	casts[i]=Cast.BIGINT;
+	            //else if(types[i]==Types.TINYINT)	casts[i]=Cast.ARRAY;
+	            
+	            else if(types[i]==CFTypes.OPAQUE){
+	            	if(SQLUtil.isOracle(result.getStatement().getConnection()))
+	            		casts[i]=Cast.ORACLE_OPAQUE;
+	            	else 
+	            		casts[i]=Cast.OTHER;
+					
+	            }
+	            else casts[i]=Cast.OTHER;
 			}
-			++recordcount;
-		}
-		if(closeResult)result.close();
+			
+			if(createGeneratedKeys && columncount==1 && columnNames[0].equals(GENERATED_KEYS) && dc!=null && DataSourceUtil.isMSSQLDriver(dc)) {
+				columncount=0;
+				columnNames=null;
+				columns=null;
+				setGeneratedKeys(dc, result,tz);
+				return false;
+			}
+			
+	
+		// fill data
+			//Object o;
+			while(result.next()) {
+				if(maxrow>-1 && recordcount>=maxrow) {
+					break;
+				}
+				for(int i=0;i<usedColumns.length;i++) {
+				    columns[i].add(casts[i].toCFType(tz,types[i], result, usedColumns[i]+1));
+				}
+				++recordcount;
+			}
+    	}
+    	finally {
+    		if(closeResult)IOUtil.closeEL(result);
+    	}
+		
 		return true;
 	}
 
@@ -700,7 +706,7 @@ public class QueryImpl implements Query,Objects {
 	@Override
 	public void clear() {
 		for(int i=0;i<columns.length;i++) {
-            columns[i].clear();
+			columns[i].clear();
         }
         recordcount=0;
 	}
@@ -754,15 +760,10 @@ public class QueryImpl implements Query,Objects {
 		if(index!=-1) {
 			return columns[index].get(row,defaultValue);
 		}
-		if(key.getString().length()>0) {
-	        char c=key.lowerCharAt(0);
-	        if(c=='r') {
-	            if(key.equals(KeyConstants._RECORDCOUNT)) return new Double(getRecordcount());
-	        }
-	        else if(c=='c') {
-	            if(key.equals(KeyConstants._CURRENTROW)) return new Double(row);
-	            else if(key.equals(KeyConstants._COLUMNLIST)) return getColumnlist(true);
-	        }
+		if(key.length()>=10) {
+	        if(key.equals(KeyConstants._RECORDCOUNT)) return new Double(getRecordcount());
+	        if(key.equals(KeyConstants._CURRENTROW)) return new Double(row);
+	        if(key.equals(KeyConstants._COLUMNLIST)) return getColumnlist(true);
 		}
         return defaultValue;
 	}
@@ -776,22 +777,16 @@ public class QueryImpl implements Query,Objects {
 	public Object getAt(Collection.Key key, int row) throws PageException {
 		int index=getIndexFromKey(key);
 		if(index!=-1) {
-			if(NullSupportHelper.full()) return columns[index].get(row, null);
-			Object v = columns[index].get(row, null);
-			return v==null?"":v;
+			return columns[index].get(row, NullSupportHelper.empty());
 		}
-        if(key.getString().length()>0) {
-        	char c=key.lowerCharAt(0);
-	        if(c=='r') {
-	            if(key.equals(KeyConstants._RECORDCOUNT)) return new Double(getRecordcount());
-			}
-	        else if(c=='c') {
-			    if(key.equals(KeyConstants._CURRENTROW)) return new Double(row);
-			    else if(key.equals(KeyConstants._COLUMNLIST)) return getColumnlist(true);
-			}
+		if(key.length()>=10) {
+        	if(key.equals(KeyConstants._RECORDCOUNT)) return new Double(getRecordcount());
+        	if(key.equals(KeyConstants._CURRENTROW)) return new Double(row);
+			if(key.equals(KeyConstants._COLUMNLIST)) return getColumnlist(true);
         }
 		throw new DatabaseException("column ["+key+"] not found in query, columns are ["+getColumnlist(false)+"]",null,sql,null);
 	}
+	
 
     @Override
     public synchronized int removeRow(int row) throws PageException {
@@ -1192,15 +1187,10 @@ public class QueryImpl implements Query,Objects {
 		int index=getIndexFromKey(key);
 		if(index!=-1) return columns[index];
         
-		if(key.getString().length()>0) {
-        	char c=key.lowerCharAt(0);
-	        if(c=='r') {
-	            if(key.equals(KeyConstants._RECORDCOUNT)) return new QueryColumnRef(this,key,Types.INTEGER);
-	        }
-	        if(c=='c') {
-	            if(key.equals(KeyConstants._CURRENTROW)) return new QueryColumnRef(this,key,Types.INTEGER);
-	            else if(key.equals(KeyConstants._COLUMNLIST)) return new QueryColumnRef(this,key,Types.INTEGER);
-	        }
+		if(key.length()>=10) {
+        	if(key.equals(KeyConstants._RECORDCOUNT)) return new QueryColumnRef(this,key,Types.INTEGER);
+	        if(key.equals(KeyConstants._CURRENTROW)) return new QueryColumnRef(this,key,Types.INTEGER);
+	        if(key.equals(KeyConstants._COLUMNLIST)) return new QueryColumnRef(this,key,Types.INTEGER);
 		}
         throw new DatabaseException("key ["+key.getString()+"] not found in query, columns are ["+getColumnlist(false)+"]",null,sql,null);
 	}
@@ -1231,15 +1221,10 @@ public class QueryImpl implements Query,Objects {
 	public QueryColumn getColumn(Collection.Key key, QueryColumn defaultValue) {
         int index=getIndexFromKey(key);
 		if(index!=-1) return columns[index];
-        if(key.length()>0) {
-        	char c=key.lowerCharAt(0);
-	        if(c=='r') {
-	            if(key.equals(KeyConstants._RECORDCOUNT)) return new QueryColumnRef(this,key,Types.INTEGER);
-	        }
-	        if(c=='c') {
-	            if(key.equals(KeyConstants._CURRENTROW)) return new QueryColumnRef(this,key,Types.INTEGER);
-	            else if(key.equals(KeyConstants._COLUMNLIST)) return new QueryColumnRef(this,key,Types.INTEGER);
-	        }
+        if(key.length()>=10) {
+        	if(key.equals(KeyConstants._RECORDCOUNT)) return new QueryColumnRef(this,key,Types.INTEGER);
+	        if(key.equals(KeyConstants._CURRENTROW)) return new QueryColumnRef(this,key,Types.INTEGER);
+	        if(key.equals(KeyConstants._COLUMNLIST)) return new QueryColumnRef(this,key,Types.INTEGER);
         }
         return defaultValue;
 	}
@@ -1619,24 +1604,6 @@ public class QueryImpl implements Query,Objects {
         }
         return cols;
     }
-
-    /*public synchronized Struct _getMetaData() {
-    	
-        Struct cols=new StructImpl();
-        for(int i=0;i<columns.length;i++) {
-            cols.setEL(columnNames[i],columns[i].getTypeAsString());
-        }
-        
-        Struct sct=new StructImpl();
-        sct.setEL(KeyConstants._NAME,getName());
-        sct.setEL(KeyConstants._COLUMNS,cols);
-        sct.setEL(KeyConstants._SQL,sql==null?"":sql.toString());
-        sct.setEL(KeyConstants._executionTime,new Double(exeTime));
-        sct.setEL(KeyConstants._RECORDCOUNT,new Double(getRowCount()));
-        sct.setEL(KeyConstants._cached,Caster.toBoolean(isCached()));
-        return sct;
-        
-    }*/
 
 	/**
 	 * @return the sql

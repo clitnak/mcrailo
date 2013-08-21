@@ -209,7 +209,7 @@ public class QueryColumnImpl implements QueryColumnPro,Sizeable,Objects {
      * @throws DatabaseException
      */
     public Object touch(int row) {
-        if(row<1 || row>size) return NullSupportHelper.full()?null:"";
+    	if(row<1 || row>size) return NullSupportHelper.full()?null:"";
         Object o=data[row-1];
         if(o!=null) return o;
         return setEL(row,new StructImpl());
@@ -249,17 +249,12 @@ public class QueryColumnImpl implements QueryColumnPro,Sizeable,Objects {
 		throw new DeprecatedException("this method is no longer supported, use instead get(int,Object)");
 		//return QueryUtil.getValue(this,row);
     }
-    
-    public Object get(int row, Object defaultValue) {
-    	if(row<1 || row>size) return defaultValue;
-		return data[row-1];
-	}
 
-    // FUTURE this method should replace the method above, but it needs adjustment with all callers
-	/*public Object get2(int row, Object defaultValue) {
-		if(row<1 || row>size) return defaultValue;
-	    return data[row-1];
-	}*/
+	@Override
+    public Object get(int row, Object emptyValue) {
+    	if(row<1 || row>size) return emptyValue;
+    	return data[row-1]==null?emptyValue:data[row-1];
+	}
 
 	@Override
 	public Object set(String key, Object value) throws PageException {

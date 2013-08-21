@@ -41,11 +41,9 @@ import railo.commons.io.res.filter.LogResourceFilter;
 import railo.commons.io.res.filter.NotResourceFilter;
 import railo.commons.io.res.filter.OrResourceFilter;
 import railo.commons.io.res.filter.ResourceFilter;
-import railo.commons.io.res.filter.ResourceNameFilter;
 import railo.commons.io.res.util.ResourceUtil;
 import railo.commons.lang.ClassException;
 import railo.commons.lang.ClassUtil;
-import railo.commons.lang.ExceptionUtil;
 import railo.commons.lang.IDGenerator;
 import railo.commons.lang.StringUtil;
 import railo.commons.net.JarLoader;
@@ -3784,6 +3782,8 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         //admin.updateRequestTimeout(getTimespan("admin",action,"requestTimeout"));
         admin.updateClientTimeout(getTimespan("admin",action,"clientTimeout"));
         admin.updateSessionTimeout(getTimespan("admin",action,"sessionTimeout"));
+        admin.updateClientStorage(getString("admin",action,"clientStorage"));
+        admin.updateSessionStorage(getString("admin",action,"sessionStorage"));
         admin.updateApplicationTimeout(getTimespan("admin",action,"applicationTimeout"));
         admin.updateSessionType(getString("admin",action,"sessionType"));
         admin.updateLocalMode(getString("admin",action,"localMode"));
@@ -4019,7 +4019,10 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         sct.set("clientManagement",Caster.toBoolean(config.isClientManagement()));
         sct.set("domainCookies",Caster.toBoolean(config.isDomainCookies()));
         sct.set("clientCookies",Caster.toBoolean(config.isClientCookies()));
+        sct.set("clientStorage",config.getClientStorage());
+        sct.set("sessionStorage",config.getSessionStorage());
 
+        
         TimeSpan ts=config.getSessionTimeout();
         sct.set("sessionTimeout",ts);
         sct.set("sessionTimeout_day",Caster.toInteger(ts.getDay()));

@@ -22,6 +22,8 @@ import railo.runtime.type.Query;
 import railo.runtime.type.Struct;
 import railo.runtime.type.StructImpl;
 import railo.runtime.type.UDF;
+import railo.runtime.type.UDFImpl;
+import railo.runtime.type.UDFPlus;
 import railo.runtime.type.dt.DateTime;
 import railo.runtime.type.util.KeyConstants;
 import railo.runtime.type.util.StructSupport;
@@ -168,8 +170,8 @@ public final class UndefinedImpl extends StructSupport implements Undefined {
 		
 		// get data from queries
 		if(allowImplicidQueryCall && !qryStack.isEmpty()) {
-			rtn=qryStack.getDataFromACollection(pc,key,Null.NULL);
-			if(rtn!=Null.NULL) {
+			rtn=qryStack.getDataFromACollection(pc,key,NullSupportHelper.NULL());
+			if(rtn!=NullSupportHelper.NULL()) {
 				if(debug) debugCascadedAccess(pc,"query", key);
 				if(!NullSupportHelper.full() && rtn==null) return "";
 				return rtn;
@@ -696,8 +698,11 @@ public final class UndefinedImpl extends StructSupport implements Undefined {
 	@Override
 	public Object call(PageContext pc, Key methodName, Object[] args) throws PageException {
 		Object obj = get(methodName,null); // every none UDF value is fine as default argument
-		if(obj instanceof UDF) {
-			return ((UDF)obj).call(pc,args,false);
+		if(obj instanceof UDFImpl) {
+			return ((UDFImpl)obj).call(pc,methodName,args,false);
+		}
+		else if(obj instanceof UDFPlus) {
+			return ((UDFPlus)obj).call(pc,methodName,args,false);
 		}
 		throw new ExpressionException("No matching function ["+methodName+"] found");
 	}
@@ -705,8 +710,8 @@ public final class UndefinedImpl extends StructSupport implements Undefined {
     @Override
 	public Object callWithNamedValues(PageContext pc, Key methodName, Struct args) throws PageException {
 		Object obj = get(methodName,null);
-		if(obj instanceof UDF) {
-			return ((UDF)obj).callWithNamedValues(pc,args,false);
+		if(obj instanceof UDFPlus) {
+			return ((UDFPlus)obj).callWithNamedValues(pc,methodName,args,false);
 		}
 		throw new ExpressionException("No matching function ["+methodName+"] found");
 	}

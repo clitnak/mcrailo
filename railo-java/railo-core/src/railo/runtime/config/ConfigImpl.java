@@ -77,7 +77,6 @@ import railo.runtime.extension.ExtensionProviderImpl;
 import railo.runtime.listener.AppListenerUtil;
 import railo.runtime.listener.ApplicationContext;
 import railo.runtime.listener.ApplicationListener;
-import railo.runtime.listener.JavaSettingsImpl;
 import railo.runtime.net.amf.AMFCaster;
 import railo.runtime.net.amf.ClassicAMFCaster;
 import railo.runtime.net.amf.ModernAMFCaster;
@@ -96,7 +95,6 @@ import railo.runtime.search.SearchEngine;
 import railo.runtime.security.SecurityManager;
 import railo.runtime.spooler.SpoolerEngine;
 import railo.runtime.tag.Admin;
-import railo.runtime.tag.util.DeprecatedUtil;
 import railo.runtime.type.Struct;
 import railo.runtime.type.StructImpl;
 import railo.runtime.type.UDF;
@@ -160,6 +158,10 @@ public abstract class ConfigImpl implements Config {
 	public static final int CFML_WRITER_REFULAR=1;
 	public static final int CFML_WRITER_WS=2;
 	public static final int CFML_WRITER_WS_PREF=3;
+
+
+	public static final String DEFAULT_STORAGE_SESSION = "memory";
+	public static final String DEFAULT_STORAGE_CLIENT = "cookie";
 	
 	
 	private int mode=MODE_CUSTOM;
@@ -210,6 +212,9 @@ public abstract class ConfigImpl implements Config {
 
     private Resource configFile;
     private Resource configDir;
+	private String sessionStorage=DEFAULT_STORAGE_SESSION;
+	private String clientStorage=DEFAULT_STORAGE_CLIENT;
+	
 
     private long loadTime;
 
@@ -3135,7 +3140,7 @@ public abstract class ConfigImpl implements Config {
 			}
 			
 			if(hasError) {
-				// try to load hibernate jars
+				// try to load orm jars
 				if(JarLoader.changed(pc.getConfig(), Admin.ORM_JARS))
 					throw new ORMException(
 						"cannot initialize ORM Engine ["+ormEngineClass.getName()+"], make sure you have added all the required jar files",
@@ -3319,6 +3324,8 @@ public abstract class ConfigImpl implements Config {
 	}
 
 	private final Map compressResources= new ReferenceMap(ReferenceMap.SOFT,ReferenceMap.SOFT);
+
+
 	public Compress getCompressInstance(Resource zipFile, int format, boolean caseSensitive) {
 		Compress compress=(Compress) compressResources.get(zipFile.getPath());
 		if(compress==null) {
@@ -3335,6 +3342,24 @@ public abstract class ConfigImpl implements Config {
 	public boolean getClientCluster() {
 		return false;
 	}
+	
+	public String getClientStorage() {
+		return clientStorage;
+	}
+	
+	public String getSessionStorage() {
+		return sessionStorage;
+	}
+	
+	protected void setClientStorage(String clientStorage) {
+		this.clientStorage = clientStorage;
+	}
+	
+	protected void setSessionStorage(String sessionStorage) {
+		this.sessionStorage = sessionStorage;
+	}
+	
+	
 	
 	private Map<String,ComponentMetaData> componentMetaData=null;
 	public ComponentMetaData getComponentMetadata(String key) {

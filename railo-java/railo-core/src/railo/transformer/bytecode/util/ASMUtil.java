@@ -15,14 +15,22 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 
 import railo.aprint;
+import railo.print;
 import railo.commons.digest.MD5;
 import railo.commons.io.IOUtil;
 import railo.commons.io.res.Resource;
+import railo.commons.lang.ClassException;
+import railo.commons.lang.ClassUtil;
 import railo.commons.lang.StringUtil;
+import railo.runtime.PageContext;
 import railo.runtime.component.Property;
 import railo.runtime.exp.PageException;
 import railo.runtime.net.rpc.AxisCaster;
 import railo.runtime.op.Caster;
+import railo.runtime.type.Array;
+import railo.runtime.type.Collection;
+import railo.runtime.type.Query;
+import railo.runtime.type.Struct;
 import railo.runtime.type.dt.TimeSpanImpl;
 import railo.runtime.type.util.ArrayUtil;
 import railo.runtime.type.util.ListUtil;
@@ -43,6 +51,7 @@ import railo.transformer.bytecode.expression.ExprString;
 import railo.transformer.bytecode.expression.Expression;
 import railo.transformer.bytecode.expression.var.Argument;
 import railo.transformer.bytecode.expression.var.BIF;
+import railo.transformer.bytecode.expression.var.DataMember;
 import railo.transformer.bytecode.expression.var.Member;
 import railo.transformer.bytecode.expression.var.NullExpression;
 import railo.transformer.bytecode.expression.var.Variable;
@@ -1124,6 +1133,16 @@ public final class ASMUtil {
 
 	public static String getSourceName(Class clazz) throws IOException {
 		return SourceNameClassVisitor.getSourceName(clazz);
+	}
+
+	public static boolean hasOnlyDataMembers(Variable var) {
+		Iterator<Member> it = var.getMembers().iterator();
+		Member m;
+		while(it.hasNext()){
+			m = it.next();
+			if(!(m instanceof DataMember)) return false;
+		}
+		return true;
 	}
 	
 }

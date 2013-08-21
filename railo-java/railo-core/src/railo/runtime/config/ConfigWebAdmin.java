@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.zip.ZipInputStream;
 
 import javax.servlet.ServletException;
 
@@ -25,7 +24,6 @@ import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import railo.print;
 import railo.commons.digest.MD5;
 import railo.commons.io.FileUtil;
 import railo.commons.io.IOUtil;
@@ -34,7 +32,6 @@ import railo.commons.io.cache.Cache;
 import railo.commons.io.log.LogUtil;
 import railo.commons.io.res.Resource;
 import railo.commons.io.res.ResourceProvider;
-import railo.commons.io.res.filter.ResourceFilter;
 import railo.commons.io.res.filter.ResourceNameFilter;
 import railo.commons.io.res.type.s3.S3ResourceProvider;
 import railo.commons.io.res.util.ResourceUtil;
@@ -56,7 +53,6 @@ import railo.runtime.cfx.CFXTagException;
 import railo.runtime.cfx.CFXTagPool;
 import railo.runtime.converter.ConverterException;
 import railo.runtime.converter.WDDXConverter;
-import railo.runtime.crypt.BlowfishEasy;
 import railo.runtime.db.DataSource;
 import railo.runtime.exp.ApplicationException;
 import railo.runtime.exp.ExpressionException;
@@ -1979,7 +1975,86 @@ public final class ConfigWebAdmin {
         else scope.removeAttribute("sessiontimeout");
     }
     
-    /**
+    
+
+
+	public void updateClientStorage(String storage) throws SecurityException, ApplicationException {
+		updateStorage("client", storage);
+	}
+
+
+	public void updateSessionStorage(String storage) throws SecurityException, ApplicationException {
+		updateStorage("session", storage);
+	}
+	
+
+	private void updateStorage(String storageName,String storage) throws SecurityException, ApplicationException {
+		checkWriteAccess();
+        boolean hasAccess=ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_SETTING);
+        
+        if(!hasAccess) throw new SecurityException("no access to update scope setting");
+        storage=validateStorage(storage);
+        
+        
+        Element scope=_getRootElement("scope");
+        if(!StringUtil.isEmpty(storage,true))scope.setAttribute(storageName+"storage",storage);
+        else scope.removeAttribute(storageName+"storage");
+	}
+    
+    
+    
+    private String validateStorage(String storage) throws ApplicationException {
+    	storage=storage.trim().toLowerCase();
+        
+    	// empty
+    	if(StringUtil.isEmpty(storage,true)) return "";
+    	
+    	// standard storages
+    	if("cookie".equals(storage) || "memory".equals(storage) || "file".equals(storage)) 
+    		return storage;
+    	
+    	// aliases
+    	if("ram".equals(storage)) return "memory";
+    	if("registry".equals(storage)) return "file";
+    	
+    	// datasource
+    	DataSource  ds = config.getDataSource(storage,null);
+    	if(ds!=null) {
+    		if(ds.isStorage())return storage;
+    		throw new ApplicationException("datasource ["+storage+"] is not enabled to be used as session/client storage");
+    	}
+		
+    	// cache
+    	CacheConnection cc = Util.getCacheConnection(config, storage,null);
+    	if(cc!=null) {
+    		if(cc.isStorage())return storage;
+    		throw new ApplicationException("cache ["+storage+"] is not enabled to be used as session/client storage");
+    	}
+    	
+    	String sdx=StringUtil.soundex(storage);
+    	
+    	// check if a datasource has a similar name 
+    	DataSource[] sources = config.getDataSources();
+    	for(int i=0;i<sources.length;i++){
+    		if(StringUtil.soundex(sources[i].getName()).equals(sdx))
+    			throw new ApplicationException("no matching storage for ["+storage+"] found, did you mean ["+sources[i].getName()+"]");
+    	}
+    	
+    	// check if a cache has a similar name 
+    	Iterator<String> it = config.getCacheConnections().keySet().iterator();
+    	String name;
+    	while(it.hasNext()){
+    		name=it.next();
+    		if(StringUtil.soundex(name).equals(sdx))
+    			throw new ApplicationException( "no matching storage for ["+storage+"] found, did you mean ["+name+"]");
+    	}
+    	
+		
+    	throw new ApplicationException("no matching storage for ["+storage+"] found");
+	}
+
+
+	/**
      * updates session timeout value
      * @param span
      * @throws SecurityException

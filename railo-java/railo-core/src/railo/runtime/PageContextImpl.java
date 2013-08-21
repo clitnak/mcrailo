@@ -39,7 +39,6 @@ import org.apache.oro.text.regex.PatternMatcherInput;
 import org.apache.oro.text.regex.Perl5Compiler;
 import org.apache.oro.text.regex.Perl5Matcher;
 
-import railo.print;
 import railo.commons.io.BodyContentStack;
 import railo.commons.io.IOUtil;
 import railo.commons.io.res.Resource;
@@ -61,7 +60,6 @@ import railo.runtime.config.Config;
 import railo.runtime.config.ConfigImpl;
 import railo.runtime.config.ConfigWeb;
 import railo.runtime.config.ConfigWebImpl;
-import railo.runtime.config.ConfigWebUtil;
 import railo.runtime.config.Constants;
 import railo.runtime.config.NullSupportHelper;
 import railo.runtime.db.DataSource;
@@ -95,16 +93,12 @@ import railo.runtime.exp.PageServletException;
 import railo.runtime.functions.dynamicEvaluation.Serialize;
 import railo.runtime.interpreter.CFMLExpressionInterpreter;
 import railo.runtime.interpreter.VariableInterpreter;
-import railo.runtime.listener.AppListenerSupport;
 import railo.runtime.listener.ApplicationContext;
 import railo.runtime.listener.ApplicationContextPro;
 import railo.runtime.listener.ApplicationListener;
 import railo.runtime.listener.ClassicApplicationContext;
-import railo.runtime.listener.JavaSettings;
 import railo.runtime.listener.JavaSettingsImpl;
-import railo.runtime.listener.ModernAppListener;
 import railo.runtime.listener.ModernAppListenerException;
-import railo.runtime.listener.NoneAppListener;
 import railo.runtime.monitor.RequestMonitor;
 import railo.runtime.net.ftp.FTPPool;
 import railo.runtime.net.ftp.FTPPoolImpl;
@@ -260,6 +254,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 
 	private Component activeComponent;
 	private UDF activeUDF;
+	private Collection.Key activeUDFCalledName;
     //private ComponentScope componentScope=new ComponentScope(this);
 	
 	private Credential remoteUser;
@@ -1460,6 +1455,8 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 
 				if ( !Decision.isInteger( value ) )
 					throw new ExpressionException( "The value [" + value + "] is not a valid integer" );
+
+                setVariable( name, value );
 			}
 			else {
 				if(!Decision.isCastableTo(type,value,true,true,maxLength)) {
@@ -2152,7 +2149,8 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	    	if(base==null) base=PageSourceImpl.best(config.getPageSources(this,null,realPath,onlyTopLevel,false,true));
 	    }
 	    else base=PageSourceImpl.best(config.getPageSources(this,null,realPath,onlyTopLevel,false,true));
-	    ApplicationListener listener=gatewayContext?new NoneAppListener():((MappingImpl)base.getMapping()).getApplicationListener();
+	    ApplicationListener listener=gatewayContext?config.getApplicationListener():((MappingImpl)base.getMapping()).getApplicationListener();
+	    
 	    
 	    try {
 	    	listener.onRequest(this,base,null);
@@ -2814,6 +2812,12 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	 */
 	public UDF getActiveUDF() {
 		return activeUDF;
+	}
+	public Collection.Key getActiveUDFCalledName() {
+		return activeUDFCalledName;
+	}
+	public void setActiveUDFCalledName(Collection.Key activeUDFCalledName) {
+		this.activeUDFCalledName=activeUDFCalledName;
 	}
 
 	/**

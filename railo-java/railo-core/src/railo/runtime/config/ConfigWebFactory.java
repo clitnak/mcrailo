@@ -13,11 +13,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.TimeZone;
 
 import javax.servlet.ServletConfig;
@@ -33,7 +31,6 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import railo.aprint;
-import railo.print;
 import railo.commons.collection.MapFactory;
 import railo.commons.date.TimeZoneUtil;
 import railo.commons.digest.Hash;
@@ -60,10 +57,8 @@ import railo.commons.lang.Md5;
 import railo.commons.lang.StringUtil;
 import railo.commons.lang.SystemOut;
 import railo.commons.net.URLDecoder;
-import railo.commons.net.URLEncoder;
 import railo.loader.TP;
 import railo.loader.engine.CFMLEngineFactory;
-import railo.runtime.CFMLFactory;
 import railo.runtime.CFMLFactoryImpl;
 import railo.runtime.Component;
 import railo.runtime.Info;
@@ -102,16 +97,13 @@ import railo.runtime.extension.Extension;
 import railo.runtime.extension.ExtensionImpl;
 import railo.runtime.extension.ExtensionProvider;
 import railo.runtime.extension.ExtensionProviderImpl;
-import railo.runtime.functions.other.CreateUUID;
 import railo.runtime.gateway.GatewayEngineImpl;
 import railo.runtime.gateway.GatewayEntry;
 import railo.runtime.gateway.GatewayEntryImpl;
 import railo.runtime.listener.AppListenerUtil;
 import railo.runtime.listener.ApplicationListener;
-import railo.runtime.listener.ClassicAppListener;
 import railo.runtime.listener.MixedAppListener;
 import railo.runtime.listener.ModernAppListener;
-import railo.runtime.listener.NoneAppListener;
 import railo.runtime.monitor.ActionMonitorCollector;
 import railo.runtime.monitor.ActionMonitorFatory;
 import railo.runtime.monitor.IntervallMonitor;
@@ -128,7 +120,6 @@ import railo.runtime.op.date.DateCaster;
 import railo.runtime.orm.ORMConfiguration;
 import railo.runtime.orm.ORMConfigurationImpl;
 import railo.runtime.orm.ORMEngine;
-import railo.runtime.orm.hibernate.HibernateORMEngine;
 import railo.runtime.reflection.Reflector;
 import railo.runtime.reflection.pairs.ConstructorInstance;
 import railo.runtime.search.SearchEngine;
@@ -3392,14 +3383,14 @@ public final class ConfigWebFactory {
 		config.setORMLogger(ConfigWebUtil.getLogAndSource(configServer, config, strLogger, hasAccess, logLevel));
 
 		// engine
-		String defaulrEngineClass = HibernateORMEngine.class.getName();// "railo.runtime.orm.hibernate.HibernateORMEngine";
+		String defaultEngineClass = "railo.runtime.orm.hibernate.HibernateORMEngine";
 
 		// print.o("orm:"+defaulrEngineClass);
 		String strEngine = null;
 		if (orm != null)
 			strEngine = orm.getAttribute("engine-class");
 		if (StringUtil.isEmpty(strEngine, true))
-			strEngine = defaulrEngineClass;
+			strEngine = defaultEngineClass;
 
 		// load class
 		Class<ORMEngine> clazz;
@@ -3409,7 +3400,7 @@ public final class ConfigWebFactory {
 		}
 		catch (ClassException ce) {
 			ce.printStackTrace();
-			clazz = ClassUtil.loadClass(defaulrEngineClass, null);
+			clazz = ClassUtil.loadClass(defaultEngineClass, null);
 		}
 		config.setORMEngineClass(clazz);
 
@@ -3512,8 +3503,35 @@ public final class ConfigWebFactory {
 		else if (hasCS)
 			config.setMergeFormAndURL(configServer.mergeFormAndURL());
 
+		// Client-Storage
+		{
+			String clientStorage = scope.getAttribute("clientstorage");
+			if (StringUtil.isEmpty(clientStorage, true)) 
+				clientStorage = scope.getAttribute("client-storage");
+			
+			if (hasAccess && !StringUtil.isEmpty(clientStorage)) {
+				config.setClientStorage(clientStorage);
+			}
+			else if (hasCS)
+				config.setClientStorage(configServer.getClientStorage());
+		}
+		
+		// Session-Storage
+		{
+			String sessionStorage = scope.getAttribute("sessionstorage");
+			if (StringUtil.isEmpty(sessionStorage, true)) 
+				sessionStorage = scope.getAttribute("session-storage");
+			
+			if (hasAccess && !StringUtil.isEmpty(sessionStorage)) {
+				config.setSessionStorage(sessionStorage);
+			}
+			else if (hasCS)
+				config.setSessionStorage(configServer.getSessionStorage());
+		}
+		
 		// Client Timeout
 		String clientTimeout = scope.getAttribute("clienttimeout");
+		if(StringUtil.isEmpty(clientTimeout, true)) clientTimeout = scope.getAttribute("client-timeout");
 		if (StringUtil.isEmpty(clientTimeout, true)) {
 			// deprecated
 			clientTimeout = scope.getAttribute("client-max-age");
