@@ -88,6 +88,7 @@ import railo.runtime.type.util.ListUtil;
 import railo.runtime.type.util.PropertyFactory;
 import railo.runtime.type.util.StructSupport;
 import railo.runtime.type.util.StructUtil;
+import railo.runtime.type.util.UDFUtil;
 
 /**
  * %**%
@@ -332,8 +333,10 @@ public final class ComponentImpl extends StructSupport implements Externalizable
             udf=entry.getValue();
         	
             if(udf.getOwnerComponent()==src) {
-        		udf=((UDFImpl)entry.getValue()).duplicate(trg);
-        		trgMap.put(entry.getKey(),udf);	
+            	UDFPlus clone=(UDFPlus) entry.getValue().duplicate();
+        		clone.setOwnerComponent(trg);
+        		clone.setAccess(udf.getAccess());
+        		trgMap.put(entry.getKey(),clone);	
             }
         	
         }
@@ -397,13 +400,13 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     	
 	    Iterator it = interfaceCollection.getUdfs().entrySet().iterator();
 	    Map.Entry entry;
-	    UDFImpl iUdf,cUdf;
+	    UDFPlus iUdf,cUdf;
 	    FunctionArgument[] iFA,cFA;
     	while(it.hasNext()){
     		
     		entry=(Entry) it.next();
-    		iUdf=(UDFImpl) entry.getValue();
-    		cUdf=(UDFImpl) _udfs.get(entry.getKey());
+    		iUdf=(UDFPlus) entry.getValue();
+    		cUdf=(UDFPlus) _udfs.get(entry.getKey());
     		
     		// UDF does not exist
     		if(cUdf==null ) {
@@ -469,7 +472,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	    componentPage.ckecked();
     }
 
-	private String _getErrorMessage(UDFImpl cUdf,UDFImpl iUdf) {
+	private String _getErrorMessage(UDFPlus cUdf,UDFPlus iUdf) {
 		return "function ["+cUdf.toString().toLowerCase()+"] of component " +
 			 "["+pageSource.getDisplayPath()+"]" +
 			 " does not match the function declaration ["+iUdf.toString().toLowerCase()+"] of the interface " +
@@ -487,8 +490,9 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     Object _call(PageContext pc, Collection.Key key, Struct namedArgs, Object[] args,boolean superAccess) throws PageException {
     	
     	Member member=getMember(pc,key,false, superAccess);
+    	
     	if(member instanceof UDFPlus) {
-        	return _call(pc,key,(UDFPlus)member,namedArgs,args);
+    		return _call(pc,key,(UDFPlus)member,namedArgs,args);
         }
         return onMissingMethod(pc, -1, member, key.getString(), args, namedArgs, superAccess);
     }
@@ -513,7 +517,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
         		}
         	}
         	else if(_namedArgs!=null) {
-        		UDFImpl.argumentCollection(_namedArgs, new FunctionArgument[]{});
+        		UDFUtil.argumentCollection(_namedArgs, new FunctionArgument[]{});
         		
         		Iterator<Entry<Key, Object>> it = _namedArgs.entryIterator();
         		Entry<Key, Object> e;
@@ -640,11 +644,11 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     		Iterator<Entry<Key, UDF>> it = constructorUDFs.entrySet().iterator();
     		Map.Entry<Key, UDF> entry;
     		Key key;
-    		UDFImpl udf;
+    		UDFPlus udf;
     		while(it.hasNext()){
     			entry=it.next();
     			key=entry.getKey();
-    			udf=(UDFImpl) entry.getValue();
+    			udf=(UDFPlus) entry.getValue();
     			registerUDF(key, udf,false,true);
     		}
     	}
@@ -1390,7 +1394,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
         sct.set(KeyConstants._path,ps.getDisplayPath());
         sct.set(KeyConstants._type,"component");
             
-        Class skeleton = comp.getJavaAccessClass(pc,new RefBooleanImpl(false),((ConfigImpl)pc.getConfig()).getExecutionLogEnabled(),false,false,((ConfigImpl)pc.getConfig()).getSupressWSBeforeArg());
+        Class<?> skeleton = comp.getJavaAccessClass(pc,new RefBooleanImpl(false),((ConfigImpl)pc.getConfig()).getExecutionLogEnabled(),false,false,((ConfigImpl)pc.getConfig()).getSupressWSBeforeArg());
         if(skeleton !=null)sct.set(KeyConstants._skeleton, skeleton);
         
         HttpServletRequest req = pc.getHttpServletRequest();
@@ -1407,7 +1411,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
         	Iterator<Entry<String, Property>> pit = comp.properties.properties.entrySet().iterator();
         	while(pit.hasNext()){
         		p=pit.next().getValue();
-        		parr.add(p.getMetaData());
+        		parr.append(p.getMetaData());
         	}
         	parr.sort(new ArrayOfStructComparator(KeyConstants._name));
         	sct.set(KeyConstants._properties,parr);
@@ -1424,7 +1428,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     	if(page!=null && page.udfs!=null){
     		for(int i=0;i<page.udfs.length;i++){
     			if(page.udfs[i].getAccess()>access) continue;
-        		arr.add(ComponentUtil.getMetaData(pc,(UDFPropertiesImpl) page.udfs[i]));
+        		arr.append(ComponentUtil.getMetaData(pc,(UDFPropertiesImpl) page.udfs[i]));
     		}
     	}
     	
@@ -1463,9 +1467,8 @@ public final class ComponentImpl extends StructSupport implements Externalizable
      * @throws ExpressionException 
      */
     private synchronized Object _set(PageContext pc,Collection.Key key, Object value) throws ExpressionException {
-    	//print.out("set:"+key);
-        if(value instanceof UDFImpl) {
-        	UDFImpl udf = (UDFImpl)((UDF)value).duplicate();
+    	if(value instanceof UDFPlus) {
+        	UDFPlus udf = (UDFPlus)((UDFPlus)value).duplicate();
         	//udf.isComponentMember(true);///+++
         	udf.setOwnerComponent(this);
         	if(udf.getAccess()>Component.ACCESS_PUBLIC)
@@ -1485,22 +1488,22 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
     
 
-    public void reg(Collection.Key key, UDFImpl udf) {
+    public void reg(Collection.Key key, UDFPlus udf) {
     	registerUDF(key, udf,useShadow,false);
     }
-    public void reg(String key, UDFImpl udf) {
+    public void reg(String key, UDFPlus udf) {
     	registerUDF(KeyImpl.init(key), udf,useShadow,false);
     }
 
     public void registerUDF(String key, UDF udf) {
-    	registerUDF(KeyImpl.init(key), (UDFImpl) udf,useShadow,false);
+    	registerUDF(KeyImpl.init(key), (UDFPlus) udf,useShadow,false);
     }
     public void registerUDF(String key, UDFProperties prop) {
     	registerUDF(KeyImpl.init(key), new UDFImpl( prop),useShadow,false);
     }
 
     public void registerUDF(Collection.Key key, UDF udf) {
-    	registerUDF(key, (UDFImpl) udf,useShadow,false);
+    	registerUDF(key, (UDFPlus) udf,useShadow,false);
     }
     public void registerUDF(Collection.Key key, UDFProperties prop) {
     	registerUDF(key, new UDFImpl( prop),useShadow,false);
@@ -1509,7 +1512,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     /*
      *  @deprecated injected is not used
      */
-    public void registerUDF(Collection.Key key, UDFImpl udf,boolean useShadow,boolean injected) {
+    public void registerUDF(Collection.Key key, UDFPlus udf,boolean useShadow,boolean injected) {
     	udf.setOwnerComponent(this);//+++
     	_udfs.put(key,udf);
     	_data.put(key,udf);
@@ -1579,23 +1582,25 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     }
 
     private Object callGetter(PageContext pc,Collection.Key key) throws PageException {
-    	Member member=getMember(pc,key=KeyImpl.getInstance("get"+key.getLowerString()),false,false);
+    	Key getterName = KeyImpl.getInstance("get"+key.getLowerString());
+    	Member member=getMember(pc,getterName,false,false);
         if(member instanceof UDFPlus) {
             UDFPlus udf = (UDFPlus)member;
             if(udf.getFunctionArguments().length==0 && udf.getReturnType()!=CFTypes.TYPE_VOID) {
-                return _call(pc,key,udf,null,ArrayUtil.OBJECT_EMPTY);
+                return _call(pc,getterName,udf,null,ArrayUtil.OBJECT_EMPTY);
             }
         } 
         throw new ExpressionException("Component ["+getCallName()+"] has no accessible Member with name ["+key+"]");
 	}
     
     private Object callGetter(PageContext pc,Collection.Key key, Object defaultValue) {
-    	Member member=getMember(pc,key=KeyImpl.getInstance("get"+key.getLowerString()),false,false);
+    	Key getterName = KeyImpl.getInstance("get"+key.getLowerString());
+    	Member member=getMember(pc,getterName,false,false);
         if(member instanceof UDFPlus) {
             UDFPlus udf = (UDFPlus)member;
             if(udf.getFunctionArguments().length==0 && udf.getReturnType()!=CFTypes.TYPE_VOID) {
                 try {
-					return _call(pc,key,udf,null,ArrayUtil.OBJECT_EMPTY);
+					return _call(pc,getterName,udf,null,ArrayUtil.OBJECT_EMPTY);
 				} catch (PageException e) {
 					return defaultValue;
 				}
@@ -1605,11 +1610,12 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	}
     
     private Object callSetter(PageContext pc,Collection.Key key, Object value) throws PageException {
-    	Member member=getMember(pc,key=KeyImpl.getInstance("set"+key.getLowerString()),false,false);
+    	Collection.Key setterName = KeyImpl.getInstance("set"+key.getLowerString());
+    	Member member=getMember(pc,setterName,false,false);
     	if(member instanceof UDFPlus) {
         	UDFPlus udf = (UDFPlus)member;
         	if(udf.getFunctionArguments().length==1 && (udf.getReturnType()==CFTypes.TYPE_VOID) || udf.getReturnType()==CFTypes.TYPE_ANY   ) {// TDOO support int return type
-                return _call(pc,key,udf,null,new Object[]{value});
+                return _call(pc,setterName,udf,null,new Object[]{value});
             }    
         }
         return _set(pc,key,value);
@@ -1950,8 +1956,8 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 		Iterator<? extends Member> it = data.values().iterator();
 		while(it.hasNext()){
 			m=it.next();
-			if(m instanceof UDFImpl) {
-				((UDFImpl)m).setOwnerComponent(this);
+			if(m instanceof UDFPlus) {
+				((UDFPlus)m).setOwnerComponent(this);
 			}
 		}
 	}

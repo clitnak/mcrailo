@@ -71,7 +71,6 @@ import railo.runtime.type.KeyImpl;
 import railo.runtime.type.Objects;
 import railo.runtime.type.Struct;
 import railo.runtime.type.StructImpl;
-import railo.runtime.type.UDFImpl;
 import railo.runtime.type.dt.DateTime;
 import railo.runtime.type.it.KeyAsStringIterator;
 import railo.runtime.type.it.KeyIterator;
@@ -80,6 +79,7 @@ import railo.runtime.type.it.ObjectsIterator;
 import railo.runtime.type.util.ArrayUtil;
 import railo.runtime.type.util.CollectionUtil;
 import railo.runtime.type.util.ComponentUtil;
+import railo.runtime.type.util.UDFUtil;
 import railo.transformer.bytecode.util.ASMProperty;
 import railo.transformer.bytecode.util.ASMPropertyImpl;
 
@@ -300,7 +300,7 @@ public final class RPCClient implements Objects, Iteratorable{
     		}
         }
         else {
-            UDFImpl.argumentCollection(namedArguments);
+        	UDFUtil.argumentCollection(namedArguments);
             if(inNames.size() != namedArguments.size())
                 throw new RPCException("Invalid arguments count for operation " + methodName+" ("+namedArguments.size()+" instead of "+inNames.size()+")");
             
