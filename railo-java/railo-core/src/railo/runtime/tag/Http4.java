@@ -829,8 +829,9 @@ public final class Http4 extends BodyTagImpl implements Http {
     				if(body instanceof StringBody){
     					StringBody sb=(StringBody)body;
     					try {
+    						org.apache.http.entity.ContentType ct=org.apache.http.entity.ContentType.create(sb.getMimeType(),sb.getCharset());
     						String str = IOUtil.toString(sb.getReader());
-    						StringEntity entity = new StringEntity(str,sb.getMimeType(),sb.getCharset());
+    						StringEntity entity = new StringEntity(str,ct);
     						eem.setEntity(entity);
     						
     					} catch (IOException e) {
@@ -840,7 +841,7 @@ public final class Http4 extends BodyTagImpl implements Http {
     				}
     			}
     			if(doIt) {
-    				MultipartEntity mpe = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE,null,CharsetUtil.toCharset(charset));
+    				MultipartEntity mpe = new MultipartEntity(HttpMultipartMode.STRICT);
     				Iterator<FormBodyPart> it = parts.iterator();
     				while(it.hasNext()) {
     					FormBodyPart part = it.next();
@@ -1687,7 +1688,7 @@ public final class Http4 extends BodyTagImpl implements Http {
     	//else if("related".equals(multiPartType)) 		this.multiPartType=MultipartRequestEntityFlex.MULTIPART_RELATED;
     	else
 			throw new ApplicationException("invalid value for attribute multiPartType ["+multiPartType+"]",
-					"attribute must have one of the folloing values [form-data]");
+					"attribute must have one of the following values [form-data]");
 			
     }
 
