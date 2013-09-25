@@ -1,12 +1,9 @@
 package railo.loader.engine;
 
-import java.io.BufferedOutputStream;
-import java.io.EOFException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
@@ -22,7 +19,6 @@ import java.util.List;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 
-import railo.Version;
 import railo.loader.TP;
 import railo.loader.classloader.RailoClassLoader;
 import railo.loader.util.ExtensionFilter;
@@ -36,8 +32,6 @@ import com.intergral.fusiondebug.server.FDControllerFactory;
 public class CFMLEngineFactory {
 	
 	 // set to false to disable patch loading, for example in major alpha releases
-    private static final boolean PATCH_ENABLED = true;
-    
 	private static CFMLEngineFactory factory;
     private static File railoServerRoot;
     private static CFMLEngineWrapper engineListener;
@@ -198,66 +192,10 @@ public class CFMLEngineFactory {
     }
 
     private void initEngine() throws ServletException {
+    	
         
-        int coreVersion=Version.getIntVersion();
-        long coreCreated=Version.getCreateTime();
-        
-        
-        // get newest railo version as file
-        File patcheDir=null;
-        try {
-            patcheDir = getPatchDirectory();
-            log("railo-server-root:"+patcheDir.getParent());
-        } 
-        catch (IOException e) {
-           throw new ServletException(e);
-        }
-        
-        File[] patches=PATCH_ENABLED?patcheDir.listFiles(new ExtensionFilter(new String[]{"."+getCoreExtension()})):null;
-        File railo=null;
-        if(patches!=null) {
-            for(int i=0;i<patches.length;i++) {
-                if(patches[i].getName().startsWith("tmp.rc")) {
-                    patches[i].delete();
-                }
-                else if(patches[i].lastModified()<coreCreated) {
-                    patches[i].delete();
-                }
-                else if(railo==null || isNewerThan(Util.toInVersion(patches[i].getName()),Util.toInVersion(railo.getName()))) {
-                    railo=patches[i];
-                }
-            }
-        }
-        if(railo!=null && isNewerThan(coreVersion,Util.toInVersion(railo.getName())))railo=null;
-        
-        // Load Railo
-        //URL url=null;
-        try {
-            // Load core version when no patch available
-            if(railo==null) {
-            	tlog("Load Build in Core");
-                // 
-                String coreExt=getCoreExtension();
-                engine=getCore(coreExt);
-            	
-                
-                railo=new File(patcheDir,engine.getVersion()+"."+coreExt);
-               if(PATCH_ENABLED) {
-	                InputStream bis = new TP().getClass().getResourceAsStream("/core/core."+coreExt);
-	                OutputStream bos=new BufferedOutputStream(new FileOutputStream(railo));
-	                Util.copy(bis,bos);
-	                Util.closeEL(bis,bos);
-                }
-            }
-            else {
-            	try {
-            		engine=getEngine(new RailoClassLoader(railo,mainClassLoader));
-            	}
-            	catch(EOFException e) {
-            		System.err.println("Railo patch file "+railo+" is invalid, please delete it");
-            		engine=getCore(getCoreExtension());
-            	}
-            }
+    	try{
+    		engine=getEngine(mainClassLoader);
             version=Util.toInVersion(engine.getVersion());
             
             tlog("Loaded Railo Version "+engine.getVersion());
@@ -290,18 +228,6 @@ public class CFMLEngineFactory {
         if(res!=null) return "rc";
         
         throw new ServletException("missing core file");
-	}
-
-	private CFMLEngine getCore(String ext) throws SecurityException, IllegalArgumentException, ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, IOException {
-    	InputStream is = null;
-    	try {
-    		is = new TP().getClass().getResourceAsStream("/core/core."+ext);
-    		RailoClassLoader classLoader=new RailoClassLoader(is,mainClassLoader,ext.equalsIgnoreCase("rcs"));
-    		return getEngine(classLoader);
-    	}
-    	finally {
-    		Util.closeEL(is);
-    	}
 	}
 
 	/**
