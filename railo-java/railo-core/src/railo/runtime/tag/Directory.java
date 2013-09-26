@@ -677,13 +677,8 @@ public final class Directory extends TagImpl  {
 	    securityManager.checkFileLocation(pc.getConfig(),newdirectory,serverPassword);
 		if(newdirectory.exists())
 			throw new ApplicationException("new directory ["+newdirectory.toString()+"] already exists");
-		if(createPath && !newdirectory.getParentResource().exists()) {
-			try {
-				newdirectory.getParentResource().createDirectory(true);
-			}
-			catch (IOException e) {
-				throw Caster.toPageException(e);
-			}
+		if(createPath) {
+			newdirectory.getParentResource().mkdirs();
 		}
 		try {
 			directory.moveTo(newdirectory);

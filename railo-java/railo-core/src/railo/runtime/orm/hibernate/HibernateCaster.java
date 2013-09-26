@@ -18,10 +18,9 @@ import railo.runtime.db.SQLCaster;
 import railo.runtime.db.SQLItemImpl;
 import railo.runtime.engine.ThreadLocalPageContext;
 import railo.runtime.exp.PageException;
-import railo.runtime.op.Caster;
-import railo.runtime.op.Decision;
 import railo.runtime.orm.ORMEngine;
 import railo.runtime.orm.ORMException;
+import railo.runtime.orm.ORMSession;
 import railo.runtime.type.Array;
 import railo.runtime.type.ArrayImpl;
 import railo.runtime.type.Collection;
@@ -91,12 +90,12 @@ public class HibernateCaster {
 		String name=null;
 		try {
 			ComponentAccess cfca = ComponentUtil.toComponentAccess(cfc);
-			name=Caster.toString(cfca.getMetaStructItem(ENTITY_NAME),null);
+			name=CommonUtil.toString(cfca.getMetaStructItem(ENTITY_NAME),null);
 		} 
 		catch (Throwable t) {
 			try {
 				Struct md = cfc.getMetaData(ThreadLocalPageContext.get());
-				name = Caster.toString(md.get(ENTITY_NAME),null);
+				name = CommonUtil.toString(md.get(ENTITY_NAME),null);
 				
 			}catch (PageException e) {}
 		}
@@ -119,10 +118,10 @@ public class HibernateCaster {
 		return name;
 	}
 
-	public static int cascade(HibernateORMEngine engine,String cascade) throws ORMException {
+	public static int cascade(ORMSession session,String cascade) throws ORMException {
 		int c=cascade(cascade,-1);
 		if(c!=-1) return c;
-		throw new HibernateException(engine,"invalid cascade defintion ["+cascade+"], valid values are [all,all-delete-orphan,delete,delete-orphan,refresh,save-update]");
+		throw new ORMException(session,null,"invalid cascade defintion ["+cascade+"], valid values are [all,all-delete-orphan,delete,delete-orphan,refresh,save-update]",null);
 	}
 	
 	public static int cascade(String cascade, int defaultValue) {
@@ -148,10 +147,10 @@ public class HibernateCaster {
 		return defaultValue;
 	}
 
-	public static int collectionType(HibernateORMEngine engine,String strCollectionType) throws ORMException {
+	public static int collectionType(ORMSession session,String strCollectionType) throws ORMException {
 		int ct=collectionType(strCollectionType, -1);
 		if(ct!=-1) return ct;
-		throw new ORMException(engine,"invalid collectionType defintion ["+strCollectionType+"], valid values are [array,struct]");
+		throw new ORMException(session,null,"invalid collectionType defintion ["+strCollectionType+"], valid values are [array,struct]",null);
 	}
 	public static int collectionType(String strCollectionType, int defaultValue) {
 		strCollectionType=strCollectionType.trim().toLowerCase();
@@ -258,9 +257,9 @@ public class HibernateCaster {
 		return defaultValue;
 	}
 	
-	public static String toHibernateType(HibernateORMEngine engine,String type) throws ORMException	{
+	public static String toHibernateType(ORMSession session,String type) throws ORMException	{
 		String res=toHibernateType(type, null);
-		if(res==null) throw new ORMException(engine,"the type ["+type+"] is not supported");
+		if(res==null) throw new ORMException(session,null,"the type ["+type+"] is not supported",null);
 		return res;
 	}
 	
@@ -380,8 +379,8 @@ public class HibernateCaster {
 	 * @return
 	 * @throws PageException
 	 */
-	public static Object toSQL(HibernateORMEngine engine,ColumnInfo ci, Object value, RefBoolean isArray) throws PageException {
-		return toSQL(engine, ci.getType(), value,isArray);
+	public static Object toSQL(ColumnInfo ci, Object value, RefBoolean isArray) throws PageException {
+		return toSQL(ci.getType(), value,isArray);
 	}
 	
 	/**
@@ -392,10 +391,10 @@ public class HibernateCaster {
 	 * @return
 	 * @throws PageException
 	 */
-	public static Object toSQL(HibernateORMEngine engine,Type type, Object value, RefBoolean isArray) throws PageException {
+	public static Object toSQL(Type type, Object value, RefBoolean isArray) throws PageException {
 		int t = toSQLType(type.getName(), Types.OTHER);
 		if(t==Types.OTHER) return value;
-		return toSQL(engine, t, value,isArray);
+		return toSQL(t, value,isArray);
 	}
 
 	/**
@@ -406,7 +405,7 @@ public class HibernateCaster {
 	 * @return
 	 * @throws PageException
 	 */
-	private static Object toSQL(HibernateORMEngine engine,int sqlType, Object value, RefBoolean isArray) throws PageException {
+	private static Object toSQL(int sqlType, Object value, RefBoolean isArray) throws PageException {
 		if(isArray!=null)isArray.setValue(false);
 		SQLItemImpl item = new SQLItemImpl(value,sqlType);
 		try{
@@ -414,8 +413,8 @@ public class HibernateCaster {
 		}
 		catch(PageException pe){
 			// pherhaps it is a array of this type 
-			if(isArray!=null && Decision.isArray(value)) {
-				Object[] src = Caster.toNativeArray(value);
+			if(isArray!=null && CommonUtil.isArray(value)) {
+				Object[] src = CommonUtil.toNativeArray(value);
 				ArrayList<Object> trg = new ArrayList<Object>();
 				for(int i=0;i<src.length;i++){
 					try{
@@ -438,13 +437,13 @@ public class HibernateCaster {
 	public static railo.runtime.type.Query toQuery(PageContext pc,HibernateORMSession session, Object obj, String name) throws PageException {
 		Query qry=null;
 		// a single entity
-		if(!Decision.isArray(obj)){
+		if(!CommonUtil.isArray(obj)){
 			qry= toQuery(pc,session,HibernateCaster.toComponent(obj),name,null,1,1);
 		}
 		
 		// a array of entities
 		else {
-			Array arr=Caster.toArray(obj);
+			Array arr=CommonUtil.toArray(obj);
 			int len=arr.size();
 			if(len>0) {
 				Iterator<Object> it = arr.valueIterator();
@@ -459,8 +458,8 @@ public class HibernateCaster {
 		
 		if(qry==null) {
 			if(!StringUtil.isEmpty(name))
-				throw new ORMException(session.getEngine(),"there is no entity inheritance that match the name ["+name+"]");
-			throw new ORMException(session.getEngine(),"cannot create query");
+				throw new ORMException(session,null,"there is no entity inheritance that match the name ["+name+"]",null);
+			throw new ORMException(session,null,"cannot create query",null);
 		}
 		return qry;
 	}
@@ -498,7 +497,7 @@ public class HibernateCaster {
 				obj = properties[i].getMetaData();
 				if(obj instanceof Struct) {
 					sct=(Struct) obj;
-					fieldType = Caster.toString(sct.get(KeyConstants._fieldtype,null),null);
+					fieldType = CommonUtil.toString(sct.get(KeyConstants._fieldtype,null),null);
 					if("one-to-many".equalsIgnoreCase(fieldType) || "many-to-many".equalsIgnoreCase(fieldType) || "many-to-one".equalsIgnoreCase(fieldType) || "one-to-one".equalsIgnoreCase(fieldType)) 
 						continue;
 					
@@ -526,7 +525,7 @@ public class HibernateCaster {
 		// check
 		else if(engine.getMode() == ORMEngine.MODE_STRICT){
 			if(!qry.getName().equals(getEntityName(cfc)))
-				throw new ORMException(session.getEngine(),"can only merge entities of the same kind to a query");
+				throw new ORMException(session,null,"can only merge entities of the same kind to a query",null);
 		}
 		
 		// populate
@@ -554,8 +553,8 @@ public class HibernateCaster {
 			if(value instanceof Component){
 				qry=inheritance(pc,session,qry,cfc,(Component) value,entityName);
 			}
-			else if(Decision.isArray(value)){
-				arr = Caster.toArray(value);
+			else if(CommonUtil.isArray(value)){
+				arr = CommonUtil.toArray(value);
 				Iterator<Object> it = arr.valueIterator();
 				while(it.hasNext()){
 					value=it.next();
@@ -588,7 +587,7 @@ public class HibernateCaster {
 	}
 	
 	public static Component toComponent(Object obj) throws PageException {
-		return Caster.toComponent(obj);
+		return CommonUtil.toComponent(obj);
 	}
 
 
