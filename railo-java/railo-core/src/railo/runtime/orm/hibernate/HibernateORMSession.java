@@ -1,7 +1,6 @@
 package railo.runtime.orm.hibernate;
 
 import java.io.Serializable;
-import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +8,6 @@ import java.util.Map.Entry;
 
 import org.hibernate.Criteria;
 import org.hibernate.FlushMode;
-import org.hibernate.JDBCException;
 import org.hibernate.NonUniqueResultException;
 import org.hibernate.QueryException;
 import org.hibernate.Session;
@@ -375,13 +373,12 @@ public class HibernateORMSession implements ORMSession{
 		
 		
 		// select
-		try {
-			if(StringUtil.startsWithIgnoreCase(hql,"select") || StringUtil.startsWithIgnoreCase(hql,"from")){
-				if(unique){
-					return uniqueResult(query);
-				}
-				return query.list();
+		if(StringUtil.startsWithIgnoreCase(hql,"select") || StringUtil.startsWithIgnoreCase(hql,"from")){
+			if(unique){
+				return uniqueResult(query);
 			}
+			
+			return query.list();
 		}
 	    // update
 		return new Double(query.executeUpdate());
@@ -639,15 +636,11 @@ public class HibernateORMSession implements ORMSession{
 			}
 			
 			// execute
-			try {
-				if(!unique){
-					rtn = HibernateCaster.toCFML(criteria.list());
-				}
-				else {
-					rtn= HibernateCaster.toCFML(criteria.uniqueResult());
-				}
-			} catch (Throwable t) {
-				throw _improveException(t);
+			if(!unique){
+				rtn = HibernateCaster.toCFML(criteria.list());
+			}
+			else {
+				rtn= HibernateCaster.toCFML(criteria.uniqueResult());
 			}
 			
 			
