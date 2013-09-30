@@ -996,6 +996,14 @@ public final class PageContextImpl extends PageContext implements Sizeable {
     public PageSource getCurrentPageSource() {
     	return pathList.getLast();
     }
+    public PageSource getCurrentPageSource(PageSource defaultvalue) {
+    	try{
+    		return pathList.getLast();
+    	}
+    	catch(Throwable t){
+    		return defaultvalue;
+    	}
+    }
     
     /**
      * @return the current template SourceFile
@@ -2339,12 +2347,6 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	}
 
     @Override
-    public Locale getLocale() {
-		if(locale==null) locale=config.getLocale();
-		return locale;
-	}
-
-    @Override
     public void setPsq(boolean psq) {
 		this.psq=psq;
 	}
@@ -2353,12 +2355,20 @@ public final class PageContextImpl extends PageContext implements Sizeable {
     public boolean getPsq() {
 		return psq;
 	}
+
+    @Override
+    public Locale getLocale() {
+    	Locale l = ((ApplicationContextPro)getApplicationContext()).getLocale();
+    	if(l!=null) return l;
+    	if(locale!=null) return locale;
+    	return config.getLocale();
+	}
 	
     @Override
     public void setLocale(Locale locale) {
 		
-		//String old=GetLocale.call(pc);
-		this.locale=locale;
+		((ApplicationContextPro)getApplicationContext()).setLocale(locale);
+    	this.locale=locale;
         HttpServletResponse rsp = getHttpServletResponse();
         
         String charEnc = rsp.getCharacterEncoding();
@@ -2761,7 +2771,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 
     @Override
     public railo.runtime.Component loadComponent(String compPath) throws PageException {
-    	return ComponentLoader.loadComponent(this,compPath,null,null);
+    	return ComponentLoader.loadComponent(this,null,compPath,null,null);
     }
 
 	/**
@@ -2900,11 +2910,15 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 
 	@Override
 	public TimeZone getTimeZone() {
-		if(timeZone==null) timeZone=config.getTimeZone();
-		return timeZone;
+		TimeZone tz = ((ApplicationContextPro)getApplicationContext()).getTimeZone();
+		if(tz!=null) return tz;
+		if(timeZone!=null) return timeZone;
+		return config.getTimeZone();
 	}
+	
 	@Override
-	public void  setTimeZone(TimeZone timeZone) {
+	public void setTimeZone(TimeZone timeZone) {
+		((ApplicationContextPro)getApplicationContext()).setTimeZone(timeZone);
 		this.timeZone=timeZone;
 	}
 
