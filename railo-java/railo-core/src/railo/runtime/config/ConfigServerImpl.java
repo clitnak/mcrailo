@@ -71,7 +71,7 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 	private ActionMonitorCollector actionMonitorCollector;
 	
 	private boolean monitoringEnabled=false;
-	private int delay=0;
+	private int delay=1;
 	private boolean captcha=false;
 	private static ConfigServerImpl instance;
 
@@ -629,9 +629,15 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 	}
 
 	public void checkAccess(String key, long timeNonce) throws PageException {
-		if(previousNonces.containsKey(timeNonce))
-        	throw new ApplicationException("nonce was already used, same nonce can only be used once");
-    	
+		
+		if(previousNonces.containsKey(timeNonce)) {
+			long now = System.currentTimeMillis();
+			long diff=timeNonce>now?timeNonce-now:now-timeNonce;
+			if(diff>10)
+				throw new ApplicationException("nonce was already used, same nonce can only be used once");
+			
+			
+		}
     	long now = System.currentTimeMillis()+getTimeServerOffset();
     	if(timeNonce>(now+FIVE_SECONDS) || timeNonce<(now-FIVE_SECONDS))
     		throw new ApplicationException("nonce is outdated");

@@ -3265,6 +3265,9 @@ public final class Caster {
                     } else if(type.equals("function")) {
                     	return toFunction(o);
                     }
+                    else if(type.equals("function")) {
+                    	return toFunction(o);
+                    }
                     break;
                 case 'g':
                     if(type.equals("guid")) {

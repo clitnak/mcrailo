@@ -4369,6 +4369,23 @@ public final class ConfigWebAdmin {
         root.setAttribute("auth-keys",authKeysAsList(set));
 	}
 
+	public void updateAPIKey(String key) throws SecurityException, ApplicationException {
+		checkWriteAccess();
+		key=key.trim();
+		if(!Decision.isGUId(key))
+			throw new ApplicationException("passed API Key ["+key+"] is not valid");
+		Element root=doc.getDocumentElement();
+        root.setAttribute("api-key",key);
+		
+	}
+	
+	public void removeAPIKey() throws PageException {
+		checkWriteAccess();
+		Element root=doc.getDocumentElement();
+        if(root.hasAttribute("api-key"))
+        	root.removeAttribute("api-key");
+	}
+
 	private String authKeysAsList(Set<String> set) throws PageException {
 		StringBuilder sb=new StringBuilder();
 		Iterator<String> it = set.iterator();
@@ -4385,4 +4402,6 @@ public final class ConfigWebAdmin {
 		}
 		return sb.toString();
 	}
+
+
 }

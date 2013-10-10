@@ -489,7 +489,7 @@ public final class ComponentUtil {
     	Class superClass = Object.class;
     	
     	if(includeSuper && component.getExtends() != null && !component.getExtends().equals("")) {
-    		Component superCFC = ComponentLoader.loadComponent(pc, component.getExtends(), true, true);
+    		Component superCFC = ComponentLoader.loadComponent(pc, component.getPageSource(), component.getExtends(), true, true);
     		superClass = _getServerComponentPropertiesClass(pc,superCFC,true,namespace);
     	}
     	

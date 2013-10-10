@@ -2532,8 +2532,6 @@ public final class ConfigWebFactory {
 	private static void loadRailoConfig(ConfigServerImpl configServer, ConfigImpl config, Document doc) throws IOException  {
 		Element railoConfiguration = doc.getDocumentElement();
 		
-		
-		
 		// password
 		String hpw=railoConfiguration.getAttribute("pw");
 		if(StringUtil.isEmpty(hpw)) {
@@ -2565,9 +2563,12 @@ public final class ConfigWebFactory {
 		
 		// api key
 		String apiKey = railoConfiguration.getAttribute("api-key");
-		if(!StringUtil.isEmpty(apiKey))config.setApiKey(apiKey);
-		
-		
+		if(!StringUtil.isEmpty(apiKey))
+			config.setApiKey(apiKey);
+		else if(configServer != null)
+			config.setApiKey(configServer.getApiKey());
+		else 
+			config.setApiKey(null);
 		
 		// default password
 		if (config instanceof ConfigServerImpl) {
@@ -3689,7 +3690,7 @@ public final class ConfigWebFactory {
 		if (config instanceof ConfigServer) {
 			Element login = getChildByName(doc.getDocumentElement(), "login");
 			boolean captcha = Caster.toBooleanValue(login.getAttribute("captcha"), false);
-			int delay = Caster.toIntValue(login.getAttribute("delay"), 0);
+			int delay = Caster.toIntValue(login.getAttribute("delay"), 1);
 			ConfigServerImpl cs = (ConfigServerImpl) config;
 			cs.setLoginDelay(delay);
 			cs.setLoginCaptcha(captcha);
