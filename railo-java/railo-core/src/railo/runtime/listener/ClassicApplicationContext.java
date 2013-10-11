@@ -1,7 +1,9 @@
 package railo.runtime.listener;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
 import railo.commons.io.res.Resource;
 import railo.commons.lang.StringUtil;
@@ -32,6 +34,7 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	private static final long serialVersionUID = 940663152793150953L;
 
 	private String name;
+	private String sessionClusterKey;
     private boolean setClientCookies;
     private boolean setDomainCookies;
     private boolean setSessionManagement;
@@ -58,6 +61,8 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	
 
 	private int localMode;
+	private Locale locale; 
+	private TimeZone timeZone; 
 	private short sessionType;
     private boolean sessionCluster;
     private boolean clientCluster;
@@ -95,6 +100,8 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
         this.isDefault=isDefault;
         this.defaultDataSource=config.getDefaultDataSource();
         this.localMode=config.getLocalMode();
+        this.locale=config.getLocale();
+        this.timeZone=config.getTimeZone();
 
         this.bufferOutput=((ConfigImpl)config).getBufferOutput();
         this.sessionType=config.getSessionType();
@@ -147,6 +154,8 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 		dbl.cookiedomain=cookiedomain;
 		dbl.idletimeout=idletimeout;
 		dbl.localMode=localMode;
+		dbl.locale=locale;
+		dbl.timeZone=timeZone;
 		dbl.sessionType=sessionType;
 		dbl.triggerComponentDataMember=triggerComponentDataMember;
 		dbl.restSettings=restSettings;
@@ -413,12 +422,21 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 		return s3;
 	}
 
-	/**
-	 * @return the localMode
-	 */
+	@Override
 	public int getLocalMode() {
 		return localMode;
 	}
+
+	@Override
+	public Locale getLocale() {
+		return locale;
+	}
+
+	@Override
+	public TimeZone getTimeZone() {
+		return timeZone;
+	}
+	
 
 
 	/**
@@ -426,6 +444,16 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	 */
 	public void setLocalMode(int localMode) {
 		this.localMode = localMode;
+	}
+
+	@Override
+	public void setLocale(Locale locale) {
+		this.locale = locale;
+	}
+
+	@Override
+	public void setTimeZone(TimeZone timeZone) {
+		this.timeZone = timeZone;
 	}
 
 
@@ -458,6 +486,11 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	 */
 	public void setSessionCluster(boolean sessionCluster) {
 		this.sessionCluster = sessionCluster;
+	}
+	
+	
+	public void setSessionClusterKey(String key) {
+		this.sessionClusterKey = key;
 	}
 
 
@@ -504,6 +537,12 @@ public class ClassicApplicationContext extends ApplicationContextSupport {
 	@Override
 	public boolean getTriggerComponentDataMember() {
 		return triggerComponentDataMember;
+	}
+
+	public String getSessionClusterKey() {
+		if(this.sessionClusterKey == null)
+			return this.name;
+		return this.sessionClusterKey;
 	}
 
 	@Override

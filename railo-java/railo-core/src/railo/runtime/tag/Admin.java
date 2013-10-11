@@ -694,6 +694,10 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         else if(check("updateAuthKey",          ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE   )) doUpdateAuthKey();
         else if(check("removeAuthKey",          ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE   )) doRemoveAuthKey();
         else if(check("listAuthKey",          ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE   )) doListAuthKey();
+
+        else if(check("updateAPIKey",          ACCESS_FREE) && check2(ACCESS_WRITE   )) doUpdateAPIKey();
+        else if(check("removeAPIKey",          ACCESS_FREE) && check2(ACCESS_WRITE   )) doRemoveAPIKey();
+        else if(check("getAPIKey",          ACCESS_FREE) && check2(ACCESS_READ   )) doGetAPIKey();
         
         else if(check("createsecuritymanager",  ACCESS_NOT_WHEN_WEB) && check2(ACCESS_WRITE            )) doCreateSecurityManager();
         else if(check("getsecuritymanager",     ACCESS_NOT_WHEN_WEB) && check2(ACCESS_READ            )) doGetSecurityManager();
@@ -776,7 +780,10 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     
 
     private void doRunUpdate() throws PageException {
-    	doUpdateJars();
+    	try{
+    		doUpdateJars();
+    	}
+    	catch(Throwable t){}
     	admin.runUpdate(password);
         adminSync.broadcast(attributes, config);
     }
@@ -1043,6 +1050,24 @@ public final class Admin extends TagImpl implements DynamicAttributes {
             admin.setPassword(getString("contextPath",null),null);
         }catch (Exception e) {} 
         store();
+    }
+    
+
+    private void doUpdateAPIKey() throws PageException {  
+        admin.updateAPIKey(getString("key",null));
+        store();
+    }
+    private void doRemoveAPIKey() throws PageException {  
+        try {
+        	admin.removeAPIKey();
+        }catch (Exception e) {} 
+        store();
+    }
+    
+    private void doGetAPIKey() throws PageException {
+    	pageContext.setVariable(
+                 getString("admin",action,"returnVariable"),
+                 config.getApiKey());
     }
 
     private void doUpdateAuthKey() throws PageException {  
@@ -1582,18 +1607,18 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         sct.set("cfx_setting",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_CFX_SETTING)==SecurityManager.VALUE_YES));
         sct.set("cfx_usage",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_CFX_USAGE)==SecurityManager.VALUE_YES));
         sct.set("custom_tag",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_CUSTOM_TAG)==SecurityManager.VALUE_YES));
-        sct.set("datasource",_fillSecDataDS(sm.getAccess(SecurityManager.TYPE_DATASOURCE)));
+        sct.set(KeyConstants._datasource,_fillSecDataDS(sm.getAccess(SecurityManager.TYPE_DATASOURCE)));
         sct.set("debugging",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_DEBUGGING)==SecurityManager.VALUE_YES));
         sct.set("direct_java_access",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_DIRECT_JAVA_ACCESS)==SecurityManager.VALUE_YES));
         sct.set("mail",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_MAIL)==SecurityManager.VALUE_YES));
-        sct.set("mapping",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_MAPPING)==SecurityManager.VALUE_YES));
+        sct.set(KeyConstants._mapping,Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_MAPPING)==SecurityManager.VALUE_YES));
         sct.set("remote",Caster.toBoolean(sm.getAccess(SecurityManagerImpl.TYPE_REMOTE)==SecurityManager.VALUE_YES));
         sct.set("setting",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_SETTING)==SecurityManager.VALUE_YES));
         sct.set("search",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_SEARCH)==SecurityManager.VALUE_YES));
         sct.set("scheduled_task",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_SCHEDULED_TASK)==SecurityManager.VALUE_YES));
-        sct.set("cache",Caster.toBoolean(sm.getAccess(SecurityManagerImpl.TYPE_CACHE)==SecurityManager.VALUE_YES));
+        sct.set(KeyConstants._cache,Caster.toBoolean(sm.getAccess(SecurityManagerImpl.TYPE_CACHE)==SecurityManager.VALUE_YES));
         sct.set("gateway",Caster.toBoolean(sm.getAccess(SecurityManagerImpl.TYPE_GATEWAY)==SecurityManager.VALUE_YES));
-        sct.set("orm",Caster.toBoolean(sm.getAccess(SecurityManagerImpl.TYPE_ORM)==SecurityManager.VALUE_YES));
+        sct.set(KeyConstants._orm,Caster.toBoolean(sm.getAccess(SecurityManagerImpl.TYPE_ORM)==SecurityManager.VALUE_YES));
         
         sct.set("tag_execute",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_TAG_EXECUTE)==SecurityManager.VALUE_YES));
         sct.set("tag_import",Caster.toBoolean(sm.getAccess(SecurityManager.TYPE_TAG_IMPORT)==SecurityManager.VALUE_YES));
@@ -1604,7 +1629,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         short accessFile = sm.getAccess(SecurityManager.TYPE_FILE);
         String str = SecurityManagerImpl.toStringAccessValue(accessFile);
         if(str.equals("yes"))str="all";
-        sct.set("file",str);
+        sct.set(KeyConstants._file,str);
         
     	Array arr=new ArrayImpl();
     	if(accessFile!=SecurityManager.VALUE_ALL){
@@ -2323,7 +2348,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 
     private void doUpdateJars() throws PageException  {
     	try {
-			JarLoader.download(pageContext, UPDATE_JARS);
+			JarLoader.download(pageContext.getConfig(), UPDATE_JARS);
 		} catch (IOException e) {
 			throw Caster.toPageException(e);
 		}

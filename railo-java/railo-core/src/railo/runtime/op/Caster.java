@@ -2986,6 +2986,9 @@ public final class Caster {
             return toPageException(((ExecutionException)t).getCause());
         }
         else {
+        	if(t instanceof OutOfMemoryError) {
+        		ThreadLocalPageContext.getConfig().checkPermGenSpace(true);
+        	}
         	//Throwable cause = t.getCause();
         	//if(cause!=null && cause!=t) return toPageException(cause);
         	return new NativeException(t);
@@ -3179,7 +3182,7 @@ public final class Caster {
     	if(pc!=null)	{
         	try {
         		Component c = pc.loadComponent(type);
-        		return ComponentUtil.getServerComponentPropertiesClass(pc,c);
+        		return ComponentUtil.getServerComponentPropertiesClass(pc,c,true,"DefaultNamespace");
     		} 
             catch (PageException e) {
             	pe=e;
@@ -3259,6 +3262,11 @@ public final class Caster {
                 case 'f':
                     if(type.equals("float")) {
                     	return toDouble(o);
+                    } else if(type.equals("function")) {
+                    	return toFunction(o);
+                    }
+                    else if(type.equals("function")) {
+                    	return toFunction(o);
                     }
                     break;
                 case 'g':

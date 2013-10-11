@@ -1757,6 +1757,7 @@ public final class ConfigWebAdmin {
         	parent.removeAttribute("default-query");
         if(name.equalsIgnoreCase(parent.getAttribute("default-resource")))
         	parent.removeAttribute("default-resource");
+      
         
         // remove element
         Element[] children = ConfigWebFactory.getChildren(parent,"connection");
@@ -1765,11 +1766,16 @@ public final class ConfigWebAdmin {
   	    	if(n!=null && n.equalsIgnoreCase(name)) {
   	    		Map<String, CacheConnection> conns = config.getCacheConnections();
   	    		CacheConnection cc= conns.get(n.toLowerCase());
+  	    		
+  	    		//check if key is lower case
+  	    		if (cc == null) {
+  	    			cc = (CacheConnection) conns.get(n.toLowerCase());
+  	    		}
+  	    		
   	    		if(cc!=null)Util.removeEL(config instanceof ConfigWeb?(ConfigWeb)config:null,cc);
   	    	  parent.removeChild(children[i]);
   			}
   	    }
-      	
 	}
 	
 
@@ -4363,6 +4369,23 @@ public final class ConfigWebAdmin {
         root.setAttribute("auth-keys",authKeysAsList(set));
 	}
 
+	public void updateAPIKey(String key) throws SecurityException, ApplicationException {
+		checkWriteAccess();
+		key=key.trim();
+		if(!Decision.isGUId(key))
+			throw new ApplicationException("passed API Key ["+key+"] is not valid");
+		Element root=doc.getDocumentElement();
+        root.setAttribute("api-key",key);
+		
+	}
+	
+	public void removeAPIKey() throws PageException {
+		checkWriteAccess();
+		Element root=doc.getDocumentElement();
+        if(root.hasAttribute("api-key"))
+        	root.removeAttribute("api-key");
+	}
+
 	private String authKeysAsList(Set<String> set) throws PageException {
 		StringBuilder sb=new StringBuilder();
 		Iterator<String> it = set.iterator();
@@ -4379,4 +4402,6 @@ public final class ConfigWebAdmin {
 		}
 		return sb.toString();
 	}
+
+
 }

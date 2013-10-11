@@ -1,7 +1,6 @@
 package railo.runtime.orm;
 
 import railo.runtime.PageContext;
-import railo.runtime.db.DataSource;
 import railo.runtime.exp.PageException;
 
 public interface ORMEngine {
@@ -34,12 +33,6 @@ public interface ORMEngine {
 
 	public ORMConfiguration getConfiguration(PageContext pc);
 
-
-	public DataSource getDataSource();
-
-
-
-	public String[] getEntityNames();
 	
 	public boolean reload(PageContext pc, boolean force) throws PageException;
 

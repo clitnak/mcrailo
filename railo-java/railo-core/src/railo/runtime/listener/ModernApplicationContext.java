@@ -4,8 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
+import railo.commons.date.TimeZoneUtil;
 import railo.commons.io.res.Resource;
 import railo.commons.lang.ClassException;
 import railo.commons.lang.StringUtil;
@@ -22,6 +25,7 @@ import railo.runtime.db.DataSource;
 import railo.runtime.exp.DeprecatedException;
 import railo.runtime.exp.PageException;
 import railo.runtime.exp.PageRuntimeException;
+import railo.runtime.i18n.LocaleFactory;
 import railo.runtime.net.s3.Properties;
 import railo.runtime.op.Caster;
 import railo.runtime.op.Decision;
@@ -67,6 +71,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private static final Collection.Key LOCAL_MODE = KeyImpl.intern("localMode");
 	private static final Collection.Key BUFFER_OUTPUT = KeyImpl.intern("bufferOutput");
 	private static final Collection.Key SESSION_CLUSTER = KeyImpl.intern("sessionCluster");
+	private static final Collection.Key SESSION_CLUSTER_KEY = KeyImpl.intern("sessionClusterKey");
 	private static final Collection.Key CLIENT_CLUSTER = KeyImpl.intern("clientCluster");
 	
 
@@ -93,7 +98,6 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private int loginStorage=Scope.SCOPE_COOKIE;
 	private int scriptProtect;
 	private Object defaultDataSource;
-	private int localMode;
 	private boolean bufferOutput;
 	private short sessionType;
 	private boolean sessionCluster;
@@ -102,6 +106,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 
 	private String clientStorage;
 	private String sessionStorage;
+	private String sessionClusterKey;
 	private String secureJsonPrefix="//";
 	private boolean secureJson; 
 	private Mapping[] mappings;
@@ -127,6 +132,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private boolean initSecureJson;
 	private boolean initSessionStorage;
 	private boolean initSessionCluster;
+	private boolean initSessionClusterKey;
 	private boolean initClientCluster;
 	private boolean initLoginStorage;
 	private boolean initSessionType;
@@ -137,6 +143,7 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private boolean initSameFieldAsArrays;
 	private boolean initCTMappings;
 	private boolean initCMappings;
+	private int localMode;
 	private boolean initLocalMode;
 	private boolean initBufferOutput;
 	private boolean initS3;
@@ -147,7 +154,11 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 	private boolean initJavaSettings;
 	private JavaSettings javaSettings;
 	private Object ormDatasource;
-
+	private Locale locale;
+	private boolean initLocale;
+	private TimeZone timeZone;
+	private boolean initTimeZone;
+	
 	private Resource[] restCFCLocations;
 		
 	public ModernApplicationContext(PageContext pc, ComponentAccess cfc, RefBoolean throwsErrorWhileInit) {
@@ -162,6 +173,8 @@ public class ModernApplicationContext extends ApplicationContextSupport {
         scriptProtect=config.getScriptProtect();
         this.defaultDataSource=config.getDefaultDataSource();
         this.localMode=config.getLocalMode();
+        this.locale=config.getLocale();
+        this.timeZone=config.getTimeZone();
         this.bufferOutput=((ConfigImpl)config).getBufferOutput();
         this.sessionType=config.getSessionType();
         this.sessionCluster=config.getSessionCluster();
@@ -415,7 +428,17 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 		return sessionCluster;
 	}
 
-	@Override
+	public String getSessionClusterKey() {
+		if(!initSessionClusterKey) {
+			Object o = get(component,SESSION_CLUSTER_KEY,getName());
+			if(o!=null) sessionClusterKey=Caster.toString(o,sessionClusterKey);
+			initSessionClusterKey=true;
+		}
+		return sessionClusterKey;
+	}
+	/**
+	 * @see railo.runtime.listener.ApplicationContext#getClientCluster()
+	 */
 	public boolean getClientCluster() {
 		if(!initClientCluster) {
 			Object o = get(component,CLIENT_CLUSTER,null);
@@ -588,6 +611,32 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 			initLocalMode=true; 
 		}
 		return localMode;
+	}
+
+	@Override
+	public Locale getLocale() {
+		if(!initLocale) {
+			Object o = get(component,KeyConstants._locale,null);
+			if(o!=null){
+				String str = Caster.toString(o,null);
+				if(!StringUtil.isEmpty(str))locale=LocaleFactory.getLocale(str,locale);
+			}
+			initLocale=true; 
+		}
+		return locale;
+	}
+
+	@Override
+	public TimeZone getTimeZone() {
+		if(!initTimeZone) {
+			Object o = get(component,KeyConstants._timezone,null);
+			if(o!=null){
+				String str = Caster.toString(o,null);
+				if(!StringUtil.isEmpty(str))timeZone=TimeZoneUtil.toTimeZone(str,timeZone);
+			}
+			initTimeZone=true; 
+		}
+		return timeZone;
 	}
 	
 
@@ -806,6 +855,19 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 		initLocalMode=true;
 		this.localMode=localMode;
 	}
+
+	@Override
+	public void setLocale(Locale locale) {
+		initLocale=true;
+		this.locale=locale;
+	}
+
+	@Override
+	public void setTimeZone(TimeZone timeZone) {
+		initTimeZone=true;
+		this.timeZone=timeZone;
+	}
+	
 	public void setBufferOutput(boolean bufferOutput) {
 		initBufferOutput=true;
 		this.bufferOutput=bufferOutput;
@@ -829,7 +891,11 @@ public class ModernApplicationContext extends ApplicationContextSupport {
 		this.sessionCluster=sessionCluster;
 	}
 
-	@Override
+	public void setSessionClusterKey(String sessionClusterKey) {
+		this.sessionClusterKey = sessionClusterKey;
+		this.initSessionClusterKey =true;
+	}
+
 	public void setS3(Properties s3) {
 		initS3=true;
 		this.s3=s3;

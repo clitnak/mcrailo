@@ -4,7 +4,6 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.lang.ref.SoftReference;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
@@ -32,6 +31,8 @@ import railo.commons.lang.types.RefBooleanImpl;
 import railo.runtime.component.ComponentLoader;
 import railo.runtime.component.DataMember;
 import railo.runtime.component.InterfaceCollection;
+import railo.runtime.component.MetaDataSoftReference;
+import railo.runtime.component.MetadataUtil;
 import railo.runtime.component.Member;
 import railo.runtime.component.Property;
 import railo.runtime.config.ConfigImpl;
@@ -116,10 +117,12 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
 	private InterfaceCollection interfaceCollection;
 
+
 	private boolean useShadow;
 	boolean afterConstructor;
 	private Map<Key,UDF> constructorUDFs;
 	private boolean loaded;
+	private boolean hasInjectedFunctions;
 
 
 
@@ -206,6 +209,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	    	trg.pageSource=pageSource;
 	        trg._triggerDataMember=_triggerDataMember;
 	        trg.useShadow=useShadow;
+	        trg.hasInjectedFunctions=hasInjectedFunctions;
 	        trg.afterConstructor=afterConstructor;
 	        trg.dataMemberDefaultAccess=dataMemberDefaultAccess;
 			trg.properties=properties.duplicate();
@@ -356,7 +360,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
         // extends
 	    if(!StringUtil.isEmpty(properties.extend)) {
-			base= ComponentLoader.loadComponent(pageContext,properties.extend,Boolean.TRUE,null);
+			base= ComponentLoader.loadComponent(pageContext,componentPage.getPageSource(),properties.extend,Boolean.TRUE,null);
 		}
 	    else { 
 	    	Page p=((ConfigWebImpl)pageContext.getConfig()).getBaseComponentPage(pageContext);
@@ -381,7 +385,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	    
 	    // implements
 	    if(!StringUtil.isEmpty(properties.implement)) {
-	    	interfaceCollection=new InterfaceCollection((PageContextImpl)pageContext,properties.implement);
+	    	interfaceCollection=new InterfaceCollection((PageContextImpl)pageContext,getPageSource(),properties.implement);
 	    }
 	    
 	    // scope
@@ -1325,7 +1329,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
     @Override
     public synchronized Struct getMetaData(PageContext pc) throws PageException {
-    	return getMetaData(ACCESS_PRIVATE,pc,top);
+    	return getMetaData(ACCESS_PRIVATE,pc,top,false);
     }
     
 
@@ -1336,15 +1340,13 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     	return null;
     }
 
-    protected static Struct getMetaData(int access,PageContext pc, ComponentImpl comp) throws PageException {
+    protected static Struct getMetaData(int access,PageContext pc, ComponentImpl comp, boolean ignoreCache) throws PageException {
     	// Cache
-    	Page page = ((PageSourceImpl)comp.pageSource).getPage();
-    	if(page==null) page = comp.pageSource.loadPage(pc.getConfig());
-    	if(page.metaData!=null && page.metaData.get()!=null) {
+    	Page page=MetadataUtil.getPageWhenMetaDataStillValid(pc, comp, ignoreCache);
+    	if(page!=null && page.metaData!=null && page.metaData.get()!=null){
     		return page.metaData.get();
-
     	}
-    	
+    	long creationTime=System.currentTimeMillis(); 
     	StructImpl sct=new StructImpl();
     	
         // fill udfs
@@ -1368,7 +1370,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
             
         // extends
         Struct ex=null;
-        if(comp.base!=null) ex=getMetaData(access,pc,comp.base);
+        if(comp.base!=null) ex=getMetaData(access,pc,comp.base,true);
         if(ex!=null)sct.set(KeyConstants._extends,ex);
         
         // implements
@@ -1381,7 +1383,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
             	for(int i=0;i<interfaces.length;i++){
             		if(!set.contains(interfaces[i].getCallPath())) continue;
             		//print.e("-"+interfaces[i].getCallPath());
-            		imp.setEL(KeyImpl.init(interfaces[i].getCallPath()), interfaces[i].getMetaData(pc));
+            		imp.setEL(KeyImpl.init(interfaces[i].getCallPath()), interfaces[i].getMetaData(pc,true));
 	            }
 	            sct.set(KeyConstants._implements,imp);
             }
@@ -1416,11 +1418,16 @@ public final class ComponentImpl extends StructSupport implements Externalizable
         	parr.sort(new ArrayOfStructComparator(KeyConstants._name));
         	sct.set(KeyConstants._properties,parr);
         }
-        page.metaData=new SoftReference<Struct>(sct);
-        return page.metaData.get();
+
+        page.metaData=new MetaDataSoftReference<Struct>(sct,creationTime);
+        return sct;
     }    
 
-    private static void metaUDFs(PageContext pc,ComponentImpl comp,Struct sct, int access) throws PageException {
+
+
+	
+
+	private static void metaUDFs(PageContext pc,ComponentImpl comp,Struct sct, int access) throws PageException {
     	ArrayImpl arr=new ArrayImpl();
     	//Collection.Key name;
         
@@ -1475,7 +1482,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
         		udf.setAccess(Component.ACCESS_PUBLIC);
         	_data.put(key,udf);
         	_udfs.put(key,udf);
-        	
+        	hasInjectedFunctions=true;
         }
         else {
         	if(loaded && !isAccessible(ThreadLocalPageContext.get(pc), dataMemberDefaultAccess))
@@ -1940,6 +1947,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 			this.scope=other.scope;
 			this.top=this;
 			this._triggerDataMember=other._triggerDataMember;
+			this.hasInjectedFunctions=other.hasInjectedFunctions;
 			this.useShadow=other.useShadow;
 			
 			
@@ -1977,6 +1985,9 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	}	
 	
 
+	public InterfaceCollection _interfaceCollection() {
+		return interfaceCollection;
+	}
 
 	private boolean triggerDataMember(PageContext pc) {
 		if(_triggerDataMember!=null) return _triggerDataMember.booleanValue();
@@ -1989,5 +2000,9 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
 	public void setLoaded(boolean loaded) {
 		this.loaded=loaded;
+	}
+
+	public boolean hasInjectedFunctions() {
+		return hasInjectedFunctions;
 	}
 }

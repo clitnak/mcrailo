@@ -14,7 +14,7 @@ Defaults --->
 
 <cftry>
 	<cfswitch expression="#form.mainAction#">
-	<!--- UPDATE --->
+	<!--- UPDATE Label --->
 		<cfcase value="#stText.Buttons.Update#">
 			<cfset data.label=toArrayFromForm("label")>
 			<cfset data.hash=toArrayFromForm("hash")>
@@ -30,6 +30,14 @@ Defaults --->
                     hash="#data.hash[idx]#">
                  </cfif>
             </cfloop>
+		</cfcase>
+	<!--- UPDATE API Key --->
+		<cfcase value="#stText.Buttons.OK#">
+			<cfadmin 
+                    action="updateApiKey"
+                    type="#request.adminType#"
+                    password="#session["password"&request.adminType]#"
+                    key="#trim(form.apiKey)#">
 		</cfcase>
 	</cfswitch>
 	<cfcatch>
@@ -95,7 +103,7 @@ Error Output --->
         <cfset arguments.usage=qry>
 		<cfset var ret = "" />
 		<cfsavecontent variable="ret"><cfoutput>
-   			<h3>#pool[usage.type]#</h3>
+   			<b>#pool[usage.type]#</b>
 			<cfloop query="usage">
        			<cfset local._used=int(width/arguments.usage.max*arguments.usage.used)>
         		<cfset local._free=width-_used> 
@@ -130,6 +138,11 @@ Error Output --->
 		password="#session["password"&request.adminType]#"
 		returnVariable="info">
 		
+	<cfadmin 
+		action="getAPIKey"
+		type="#request.adminType#"
+		password="#session["password"&request.adminType]#"
+		returnVariable="apiKey">
 		
 <cfadmin 
 	action="getCompilerSettings"
@@ -255,6 +268,28 @@ Error Output --->
 								</td>
 							</tr>
 							
+					</tbody>
+				</table>
+				<cfset stText.io.title="Railo IO">
+				<cfset stText.io.desc="Railo.io is your one stop shop to all that is Railo. From managing your Extension Store licenses, to monitoring your servers and keeping all your settings in sync and everything in between.">
+				<cfset stText.io.id="Railo.ID">
+				<cfset stText.io.idDesc="To interact with RailoIO, you need a Railo.ID, you can get this ID from <a target=""top"" href=""http://beta.railo.io/index.cfm/account"">here</a>">
+				<h2>#stText.io.title#</h2>
+				#stText.io.desc#
+				
+				<table class="maintbl">
+					<tbody>
+						<!--- has api key --->
+						<cfif !isNull(apiKey) && len(apiKey)>
+							<tr>
+								<cfform onerror="customError" action="#request.self#" method="post">
+								<th scope="row">#stText.io.id#</th>
+								<td><input type="text" style="width:250px" name="apiKey" value="#apiKey#"/><input class="button submit" type="submit" name="mainAction" value="#stText.Buttons.ok#"><br>
+								<span class="comment">#stText.io.idDesc#</span></td>
+								</cfform>
+							</tr>
+						</cfif>
+						
 					</tbody>
 				</table>
 				
@@ -414,8 +449,7 @@ Error Output --->
 			</td>
 			<td width="2%"></td>
 			<td valign="top" width="33%">
-
-				<h2>Update Info</h2>
+				<br><br>
 				<div id="updateInfoDesc"><div style="text-align: center;"><img src="../res/img/spinner16.gif.cfm"></div></div>
 
 				<cfsavecontent variable="Request.htmlBody" append="true">
@@ -428,22 +462,17 @@ Error Output --->
 					</script>
 				</cfsavecontent>
 
-				<!--- Memory Usage --->
-				<cftry>
-					<cfsavecontent variable="memoryInfo">
-						<h2>Memory Usage</h2>
-						
-						#printMemory(getmemoryUsage("heap"))#
-
-						#printMemory(getmemoryUsage("non_heap"))#
-					</cfsavecontent>
-					#memoryInfo#
-					<cfcatch></cfcatch>
-				</cftry>
+					<!--- Memory Usage --->
+					<cftry>
+						<cfsavecontent variable="memoryInfo">
+							<h3>Memory Usage</h3>
+							#printMemory(getmemoryUsage("heap"))#
+							#printMemory(getmemoryUsage("non_heap"))#
+						</cfsavecontent>
+						#memoryInfo#
+						<cfcatch></cfcatch>
+					</cftry>
 	
-				<!--- Support --->
-				<h2>#stText.Overview.Support#</h2>
-				<div class="txt">
 					<!--- Professional --->
 					<h3>
 						<a href="http://www.getrailo.com/index.cfm/services/support/" target="_blank">#stText.Overview.Professional#</a>
@@ -484,7 +513,7 @@ Error Output --->
 						<a href="https://twitter.com/##!/railo" target="_blank">#stText.Overview.twitter#</a>
 					</h3>
 					<div class="comment">#stText.Overview.twitterDesc#</div>
-				</div>
+				
 			</td>
 		</tr>
 	</table>
