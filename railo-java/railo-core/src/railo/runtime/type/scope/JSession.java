@@ -1,5 +1,7 @@
 package railo.runtime.type.scope;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -13,16 +15,19 @@ import javax.servlet.http.HttpSessionBindingListener;
 
 import railo.runtime.PageContext;
 import railo.runtime.engine.ThreadLocalPageContext;
+import railo.runtime.exp.CasterException;
 import railo.runtime.listener.ApplicationContext;
 import railo.runtime.type.Collection;
+import railo.runtime.type.KeyImpl;
 import railo.runtime.type.scope.storage.MemoryScope;
 import railo.runtime.type.util.KeyConstants;
 
 /**
  * 
  */
-public final class JSession extends ScopeSupport implements Session,HttpSessionBindingListener,MemoryScope {
+public final class JSession extends ScopeSupport implements Session,HttpSessionBindingListener,MemoryScope,Serializable {
     
+	private static final long serialVersionUID = -603406350351527716L;//-8831294258782248513L
 	public static final Collection.Key SESSION_ID = KeyConstants._sessionid;
 	private static Set<Collection.Key> FIX_KEYS=new HashSet<Collection.Key>();
 	static {
@@ -33,7 +38,7 @@ public final class JSession extends ScopeSupport implements Session,HttpSessionB
 	
 	private String name;
     private long timespan=-1;
-    private HttpSession httpSession;
+    private transient HttpSession httpSession;
     private long lastAccess;
 	private long created;
 
@@ -154,4 +159,28 @@ public final class JSession extends ScopeSupport implements Session,HttpSessionB
 		lastAccess=System.currentTimeMillis();
 		touchBeforeRequest(pc);
 	}
+	
+	
+	 private void writeObject(java.io.ObjectOutputStream out)
+		     throws IOException {
+		 //out.defaultWriteObject();
+		 out.writeInt(size());
+		 Iterator<Entry<Key, Object>> entries = entryIterator();
+		 while(entries.hasNext()) {
+			 Entry<Key,Object> entry = entries.next();
+			 out.writeObject(entry.getKey().getString());
+			 out.writeObject(entry.getValue());
+			 
+		 }
+		 
+	 }
+	private void readObject(java.io.ObjectInputStream in)
+		     throws IOException, ClassNotFoundException{
+		//in.defaultReadObject();
+		int size = in.readInt();
+		for(int i = 0; i < size; i++) {
+			this.setEL((String)(in.readObject()),in.readObject());
+		}
+	}
+	
 }

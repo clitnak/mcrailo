@@ -56,14 +56,20 @@ public final class JavaConverter extends ConverterSupport implements BinaryConve
     }
     
     public static void serialize(Serializable o, OutputStream os) throws IOException {
+    	serialize(o,os,true);
+    }
+    
+    public static void serialize(Serializable o, OutputStream os, boolean close) throws IOException {
         ObjectOutputStream oos=null;
         try {
 	        oos = new ObjectOutputStream(os);
 	        oos.writeObject(o);
         }
         finally {
-           IOUtil.closeEL(oos);
-           IOUtil.closeEL(os);
+           if(close) {
+	           IOUtil.closeEL(oos);
+	           IOUtil.closeEL(os);
+           }
         }
     }
     
@@ -81,6 +87,11 @@ public final class JavaConverter extends ConverterSupport implements BinaryConve
     }
     
     public static Object deserialize(InputStream is) throws IOException, ClassNotFoundException {
+    	return deserialize(is,true);
+    	
+    }
+    
+    public static Object deserialize(InputStream is,boolean close) throws IOException, ClassNotFoundException {
         ObjectInputStream ois=null;
         Object o=null;
         try {
@@ -88,7 +99,9 @@ public final class JavaConverter extends ConverterSupport implements BinaryConve
 	        o=ois.readObject();
         }
         finally {
-        	IOUtil.closeEL(ois);
+        	if(close) {
+        		IOUtil.closeEL(ois);
+        	}
         }
         return o;
     }
