@@ -1,4 +1,16 @@
 <cfscript>
+function ComponentListPackageAsStruct(string package, driverNames=structnew("linked")){
+	try{
+		local._driverNames=ComponentListPackage(package);
+		loop array="#_driverNames#" index="i" item="el" {
+			driverNames[el]=package&"."&el;
+		}
+	}
+	catch(e){}
+	return driverNames;
+	
+}
+	
 /**
 * cast a String to a File Object
 * @param strFile string to cast
@@ -263,3 +275,31 @@ ACCESS.ALL= smClass.VALUE_ALL;
 ACCESS.CFX_USAGE=securityManager.getAccess(smClass.TYPE_CFX_USAGE);
 */
 </cfscript>
+
+<cffunction name="createUIDFolder" output="no"
+    	hint="create a new step cfc">
+    	<cfargument name="uid" type="string">
+        
+        <cfset var info="">
+        <cfset var data.directory="">
+        <cfadmin 
+            action="getExtensionInfo"
+            type="#request.adminType#"
+            password="#session["password"&request.adminType]#"
+            returnVariable="info">
+        <cfset data.directory=info.directory>
+        
+        <!--- create directory --->
+		<cfset var dest=data.directory>
+        <cfif not DirectoryExists(dest)>
+            <cfdirectory directory="#dest#" action="create" mode="777">
+        </cfif>
+        
+        <!--- uid --->
+        <cfset dest=dest&"/"&arguments.uid>
+        <cfif not DirectoryExists(dest)>
+            <cfdirectory directory="#dest#" action="create" mode="777">
+        </cfif>
+        
+        <cfreturn dest>
+    </cffunction>
