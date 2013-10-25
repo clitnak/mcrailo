@@ -80,7 +80,6 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 	        long cachedWithin,
 	        Integer localMode,
 	        StructImpl meta) {
-		try {
 			return new UDFPropertiesImpl( pageSource,
 			        arguments,
 					 index,
@@ -98,9 +97,6 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 			         cachedWithin,
 			         localMode,
 			         meta);
-		} catch (ExpressionException e) {
-			return new UDFPropertiesImpl();
-		}
 	}
 
 	@Override
@@ -163,6 +159,11 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 	@Override
 	public int getReturnFormat() {
 		return UDF.RETURN_FORMAT_WDDX;
+	}
+
+	@Override
+	public int getReturnFormat(int defaultValue) {
+		return defaultValue;
 	}
 
 	@Override

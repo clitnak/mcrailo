@@ -67,8 +67,6 @@ public final class ComponentUtil {
 	private final static Method CONSTRUCTOR_OBJECT = Method.getMethod("void <init> ()");
 	private static final Type COMPONENT_CONTROLLER = Type.getType(ComponentController.class); 
 	private static final Method INVOKE = new Method("invoke",Types.OBJECT,new Type[]{Types.STRING,Types.OBJECT_ARRAY});
-	private static final Collection.Key FIELD_TYPE = KeyConstants._fieldtype;
-	
 	//private static final Method INVOKE_PROPERTY = new Method("invoke",Types.OBJECT,new Type[]{Types.STRING,Types.OBJECT_ARRAY});
 	
     /**
@@ -696,20 +694,6 @@ public final class ComponentUtil {
 		return c.getProperties(onlyPeristent);
 	}
 
-	public static Property[] getProperties(Component c,boolean onlyPeristent) {
-		return getProperties(c,onlyPeristent,true,false,false);
-	}
-	
-	public static Property[] getIDProperties(Component c,boolean onlyPeristent, boolean includeBaseProperties) {
-		Property[] props = getProperties(c,onlyPeristent,includeBaseProperties,false,false);
-		java.util.List<Property> tmp=new ArrayList<Property>();
-		for(int i=0;i<props.length;i++){
-			if("id".equalsIgnoreCase(Caster.toString(props[i].getDynamicAttributes().get(FIELD_TYPE,null),"")))
-				tmp.add(props[i]);
-		}
-		return tmp.toArray(new Property[tmp.size()]);
-	}
-
 	public static ComponentAccess toComponentAccess(Component comp) throws ExpressionException {
 		ComponentAccess ca = toComponentAccess(comp, null);
 		if(ca!=null) return ca;
@@ -808,7 +792,7 @@ public final class ComponentUtil {
         
 	    	   
 	    int format = udf.returnFormat;
-        if(format==UDF.RETURN_FORMAT_WDDX)			func.set(KeyConstants._returnFormat, "wddx");
+        if(format<0 || format==UDF.RETURN_FORMAT_WDDX)			func.set(KeyConstants._returnFormat, "wddx");
         else if(format==UDF.RETURN_FORMAT_PLAIN)	func.set(KeyConstants._returnFormat, "plain");
         else if(format==UDF.RETURN_FORMAT_JSON)	func.set(KeyConstants._returnFormat, "json");
         else if(format==UDF.RETURN_FORMAT_SERIALIZE)func.set(KeyConstants._returnFormat, "cfml");

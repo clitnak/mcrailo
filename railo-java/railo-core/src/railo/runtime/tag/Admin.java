@@ -98,6 +98,8 @@ import railo.runtime.gateway.GatewayEntry;
 import railo.runtime.gateway.GatewayEntryImpl;
 import railo.runtime.gateway.GatewayUtil;
 import railo.runtime.i18n.LocaleFactory;
+import railo.runtime.instrumentation.InstrumentationUtil;
+import railo.runtime.java.JavaUtil;
 import railo.runtime.listener.AppListenerUtil;
 import railo.runtime.listener.ApplicationListener;
 import railo.runtime.monitor.IntervallMonitor;
@@ -122,6 +124,7 @@ import railo.runtime.rest.RestUtil;
 import railo.runtime.security.SecurityManager;
 import railo.runtime.security.SecurityManagerImpl;
 import railo.runtime.spooler.ExecutionPlan;
+import railo.runtime.spooler.SpoolerEngine;
 import railo.runtime.spooler.SpoolerEngineImpl;
 import railo.runtime.spooler.SpoolerTask;
 import railo.runtime.spooler.remote.RemoteClientTask;
@@ -341,7 +344,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     	if("web".equals(strType))return TYPE_WEB;
     	else if("server".equals(strType))return TYPE_SERVER;
     	if(throwError)
-        	throw new ApplicationException("invalid value for attribute type ["+strType+"] of tag admin","valid values are web, server, all");
+        	throw new ApplicationException("invalid value for attribute type ["+strType+"] of tag admin","valid values are web, server");
         return TYPE_WEB;
 	}
 
@@ -576,6 +579,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         else if(check("getFlds",                ACCESS_FREE) && check2(ACCESS_READ  )) doGetFLDs();
         else if(check("getTlds",                ACCESS_FREE) && check2(ACCESS_READ  )) doGetTLDs();
         else if(check("getMailSetting",         ACCESS_FREE) && check2(ACCESS_READ  )) doGetMailSetting();
+        else if(check("getTaskSetting",         ACCESS_FREE) && check2(ACCESS_READ  )) doGetTaskSetting();
         else if(check("getMailServers",         ACCESS_FREE) && check2(ACCESS_READ  )) doGetMailServers();
         else if(check("getMapping",             ACCESS_FREE) && check2(ACCESS_READ  )) doGetMapping();
         else if(check("getMappings",            ACCESS_FREE) && check2(ACCESS_READ  )) doGetMappings();
@@ -627,6 +631,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         else if(check("updateRemoteClientUsage",ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateRemoteClientUsage();
     	else if(check("updatemailsetting",      ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateMailSetting();
         else if(check("updatemailserver",       ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateMailServer();
+        else if(check("updatetasksetting",      ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateTaskSetting();
         else if(check("updatemapping",          ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateMapping();
         else if(check("updatecustomtag",        ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateCustomTag();
         else if(check("updateComponentMapping", ACCESS_FREE) && check2(ACCESS_WRITE  )) doUpdateComponentMapping();
@@ -1479,7 +1484,11 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 	        }
 	        sct.set("servlets", srv);
         }
-        
+
+
+	    sct.setEL("javaAgentSupported", Caster.toBoolean(InstrumentationUtil.isSupported()));
+	    sct.setEL("javaAgentPath", JavaUtil.getJarPathForClass("railo.runtime.instrumentation.Agent"));
+
     }
 
     /**
@@ -2309,21 +2318,33 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     private void doUpdateMailSetting() throws PageException {
         admin.setMailLog(getString("admin",action,"logfile"),getString("loglevel","ERROR"));
         
-        //print.ln("----------------------------------");
         admin.setMailSpoolEnable(getBoolObject("admin",action,"spoolenable"));
-        // spool intervall
-        String str=getString("admin",action,"spoolinterval");
+        
+        /*/ spool interval
+        String str=getString("admin",action,"maxThreads");
         Integer i=null;
-        if(!StringUtil.isEmpty(str))i=Caster.toInteger(str);
-        admin.setMailSpoolInterval(i);
+        if(!StringUtil.isEmpty(str))i=Caster.toInteger(maxThreads);*/
         
      // timeout
-        str=getString("admin",action,"timeout");
-        i=null;
+        String str = getString("admin",action,"timeout");
+        Integer i = null;
         if(!StringUtil.isEmpty(str))i=Caster.toInteger(str);
         admin.setMailTimeout(i);
 		
         admin.setMailDefaultCharset(getString("admin", action, "defaultencoding"));
+        store();
+        adminSync.broadcast(attributes, config);
+    }
+    private void doUpdateTaskSetting() throws PageException {
+        
+        // max Threads
+        String str=getString("admin",action,"maxThreads");
+        Integer i=null;
+        if(!StringUtil.isEmpty(str)){
+        	i=Caster.toInteger(str);
+        	if(i.intValue()<10) throw new ApplicationException("we need at least 10 threads to run tasks properly");
+        }
+        admin.setTaskMaxThreads(i);
         store();
         adminSync.broadcast(attributes, config);
     }
@@ -2469,11 +2490,31 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         sct.set("strlogfile",ls.getSource());
         sct.set("logfile",logFile);
         sct.set("loglevel",logLevel);
+        int maxThreads=20;
+        SpoolerEngine engine = config.getSpoolerEngine();
+        if(engine instanceof SpoolerEngineImpl) {
+        	maxThreads=((SpoolerEngineImpl)engine).getMaxThreads();
+        }
         
         sct.set("spoolEnable",Caster.toBoolean(config.isMailSpoolEnable()));
         sct.set("spoolInterval",Caster.toInteger(config.getMailSpoolInterval()));
+        sct.set("maxThreads",Caster.toDouble(maxThreads));
         sct.set("timeout",Caster.toInteger(config.getMailTimeout()));
 		sct.set("defaultencoding", config.getMailDefaultEncoding());
+        
+    }
+    
+    private void doGetTaskSetting() throws PageException {
+        Struct sct=new StructImpl();
+        pageContext.setVariable(getString("admin",action,"returnVariable"),sct);
+        
+        int maxThreads=20;
+        SpoolerEngine engine = config.getSpoolerEngine();
+        if(engine instanceof SpoolerEngineImpl) {
+        	SpoolerEngineImpl ei = ((SpoolerEngineImpl)engine);
+        	maxThreads=ei.getMaxThreads();
+        } 
+        sct.set("maxThreads",Caster.toDouble(maxThreads));
         
     }
 
@@ -3197,12 +3238,6 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     	pageContext.setVariable(rtnVar,qry);
         
     }
-
-    /*private String getContextPath() {
-		String cp = pageContext. getHttpServletRequest().getContextPath();
-		if(cp==null)return "";
-		return cp;
-	}*/
 
 	private void doGetDebuggingList() throws PageException {
     	Resource railoContext = ResourceUtil.toResourceExisting(pageContext ,"/railo-context/templates/debugging/");
