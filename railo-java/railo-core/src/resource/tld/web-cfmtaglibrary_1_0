@@ -2921,7 +2921,20 @@ Determines if the contents of the cfdocumentitem tag body has to be evaluated at
 				If no output file or variable attribute is specified,
 				output is displayed on page from which it was called.</description>
 		</attribute>
-
+		<attribute>
+            <type>string</type>
+            <name>errorFile</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <description>The file to which to direct the error stream of the program. If neither errorFile nor errorVariable is specified, the error stream is discarded.</description>
+        </attribute>
+		<attribute>
+			<type>string</type>
+			<name>errorVariable</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+			<description>Variable in which to put program error stream output. If neither errorFile nor errorVariable is specified, the error stream is discarded.</description>
+		</attribute>
 	</tag>
 	<!-- Exit -->
 	<tag>
@@ -4243,6 +4256,16 @@ no: the function is processed as if it were within a cfsilent tag </description>
 			<rtexprvalue>true</rtexprvalue>
 			<description>A Boolean value that specifies whether to require remote function calls to include an encrypted security token. For use with AJAX applications only.</description>
 		</attribute>
+		<attribute>
+			<type>string</type>
+			<name>localMode</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+			<description>Defines how the local scope of this function is invoked when a variable with no scope definition is used.  Accepted values include:  
+
+- classic (default): The local scope is only invoked when the key already exists in it.
+- modern: The local scope is always invoked.</description>
+		</attribute>
 	</tag>
 	<!-- Graph -->
 	<tag>
@@ -5545,6 +5568,17 @@ no: the function is processed as if it were within a cfsilent tag </description>
 	an absolute URL, including the protocol (http or https) and hostname. It may optionally contain a port
 	number. Port numbers specified in the url attribute override the port attribute.</description>
 		</attribute>
+		
+		<attribute>
+			<type>boolean</type>
+			<name>encoded</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+			<description>
+			if set to true (default value) URL encodes the value of the attribute "URL" if necessary (no double encoding is happeing).
+			This setting has no influence on the values from httpparam type="url", for this use the attribute "encoded" from httpparam</description>
+		</attribute>
+		
 		<attribute>
 			<type>string</type>
 			<name>result</name>
@@ -5834,7 +5868,9 @@ no: the function is processed as if it were within a cfsilent tag </description>
 			<name>encoded</name>
 			<required>false</required>
 			<rtexprvalue>true</rtexprvalue>
-			<description>Applies to FormField and CGI types; ignored for all other types. Specifies whether to URLEncode the form field or header.</description>
+			<description>
+				Applies to type "cgi" and "url", ignored for all other types.
+				 Specifies whether to URL encode the the values defined with the tag, but only if necessary (no double encoding).</description>
 		</attribute>
 		<attribute>
 			<type>string</type>
@@ -9415,6 +9451,27 @@ Manipulates existing PDF documents. The following list describes some of the tas
 			<rtexprvalue>true</rtexprvalue>
 			<description>A string literal; the character encoding to use to read the page. The value may be enclosed in single or double quotation marks, or none.</description>
 		</attribute>
+		<attribute>
+			<type>boolean</type>
+			<name>preserveCase</name>
+			<required>false</required>
+			<status>hidden</status>
+			<rtexprvalue>true</rtexprvalue>
+			<description>
+declare how variable keys defined by dot notation are handled.
+If set to false converts all struct keys defined with "dot notation" to upper case.
+Example:
+- sct.dotNotation --> keyname: "DOTNOTATION"
+- sct["bracketNotation"] --> keyname: "bracketNotation"
+
+If set to true keep all struct keys defined with "dot notation" in original case (according to the "bracket notation").
+Example:
+sct.dotNotation --> keyname: "dotNotation"
+sct["bracketNotation"] --> keyname: "bracketNotation"
+			</description>
+		</attribute>
+		
+		
 	</tag>
 
 	<!-- pageEncoding -->

@@ -22,7 +22,6 @@ import javax.servlet.jsp.tagext.Tag;
 
 import org.xml.sax.SAXException;
 
-import railo.print;
 import railo.commons.collection.MapFactory;
 import railo.commons.db.DBUtil;
 import railo.commons.digest.MD5;
@@ -99,7 +98,6 @@ import railo.runtime.gateway.GatewayEntryImpl;
 import railo.runtime.gateway.GatewayUtil;
 import railo.runtime.i18n.LocaleFactory;
 import railo.runtime.instrumentation.InstrumentationUtil;
-import railo.runtime.java.JavaUtil;
 import railo.runtime.listener.AppListenerUtil;
 import railo.runtime.listener.ApplicationListener;
 import railo.runtime.monitor.IntervallMonitor;
@@ -300,7 +298,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         	
             try {
             	((ConfigWebImpl)pageContext.getConfig()).setPassword(type!=TYPE_WEB,
-                        getString("oldPassword",null),getString("admin",action,"newPassword",true));
+                        getString("oldPassword",null),getString("admin",action,"newPassword",true),false,false);
             } 
             catch (Exception e) {
                 throw Caster.toPageException(e);
@@ -1485,10 +1483,8 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 	        sct.set("servlets", srv);
         }
 
-
 	    sct.setEL("javaAgentSupported", Caster.toBoolean(InstrumentationUtil.isSupported()));
-	    sct.setEL("javaAgentPath", JavaUtil.getJarPathForClass("railo.runtime.instrumentation.Agent"));
-
+	    sct.setEL("javaAgentPath", ClassUtil.getSourcePathForClass("railo.runtime.instrumentation.Agent", ""));
     }
 
     /**

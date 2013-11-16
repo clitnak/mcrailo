@@ -84,6 +84,7 @@ import railo.runtime.err.ErrorPagePool;
 import railo.runtime.exp.Abort;
 import railo.runtime.exp.ApplicationException;
 import railo.runtime.exp.CasterException;
+import railo.runtime.exp.DatabaseException;
 import railo.runtime.exp.ExceptionHandler;
 import railo.runtime.exp.ExpressionException;
 import railo.runtime.exp.MissingIncludeException;
@@ -3066,8 +3067,11 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 // FUTURE add to PageContext
 	public DataSource getDataSource(String datasource) throws PageException {
 		DataSource ds = ((ApplicationContextPro)getApplicationContext()).getDataSource(datasource,null);
-		if(ds==null) ds=getConfig().getDataSource(datasource);
-		return ds;
+		if(ds!=null) return ds;
+		ds=getConfig().getDataSource(datasource,null);
+		if(ds!=null) return ds;
+		
+		throw DatabaseException.notFoundException(this, datasource);
 	}
 		
 // FUTURE add to PageContext

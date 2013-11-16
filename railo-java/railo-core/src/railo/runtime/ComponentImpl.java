@@ -13,10 +13,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
+import railo.print;
 import railo.commons.collection.HashMapPro;
 import railo.commons.collection.MapFactory;
 import railo.commons.collection.MapPro;
@@ -31,9 +31,9 @@ import railo.commons.lang.types.RefBooleanImpl;
 import railo.runtime.component.ComponentLoader;
 import railo.runtime.component.DataMember;
 import railo.runtime.component.InterfaceCollection;
+import railo.runtime.component.Member;
 import railo.runtime.component.MetaDataSoftReference;
 import railo.runtime.component.MetadataUtil;
-import railo.runtime.component.Member;
 import railo.runtime.component.Property;
 import railo.runtime.config.ConfigImpl;
 import railo.runtime.config.ConfigWeb;
@@ -51,6 +51,8 @@ import railo.runtime.engine.ThreadLocalPageContext;
 import railo.runtime.exp.ApplicationException;
 import railo.runtime.exp.ExpressionException;
 import railo.runtime.exp.PageException;
+import railo.runtime.functions.dynamicEvaluation.EvaluateComponent;
+import railo.runtime.functions.dynamicEvaluation.Serialize;
 import railo.runtime.functions.system.ContractPath;
 import railo.runtime.interpreter.CFMLExpressionInterpreter;
 import railo.runtime.op.Caster;
@@ -58,6 +60,7 @@ import railo.runtime.op.Duplicator;
 import railo.runtime.op.Operator;
 import railo.runtime.op.ThreadLocalDuplication;
 import railo.runtime.op.date.DateCaster;
+import railo.runtime.orm.ORMUtil;
 import railo.runtime.thread.ThreadUtil;
 import railo.runtime.type.ArrayImpl;
 import railo.runtime.type.Collection;
@@ -72,6 +75,7 @@ import railo.runtime.type.UDFImpl;
 import railo.runtime.type.UDFPlus;
 import railo.runtime.type.UDFProperties;
 import railo.runtime.type.UDFPropertiesImpl;
+import railo.runtime.type.Collection.Key;
 import railo.runtime.type.cfc.ComponentAccess;
 import railo.runtime.type.cfc.ComponentAccessEntryIterator;
 import railo.runtime.type.cfc.ComponentAccessValueIterator;
@@ -96,15 +100,20 @@ import railo.runtime.type.util.UDFUtil;
  * MUST add handling for new attributes (style, namespace, serviceportname, porttypename, wsdlfile, bindingname, and output)
  */ 
 public final class ComponentImpl extends StructSupport implements Externalizable,ComponentAccess,coldfusion.runtime.TemplateProxy,Sizeable {
+	private static final long serialVersionUID = -245618330485511484L; // do not change this
 
 
+	/*
+	 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	 * Any change here must be changed in the method writeExternal,readExternal as well
+	 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	 * */
 	private ComponentProperties properties;
 	private MapPro<Key,Member> _data;
     private MapPro<Key,UDF> _udfs;
 
 	ComponentImpl top=this;
     ComponentImpl base;
-    //private ComponentPage componentPage;
     private PageSource pageSource;
     private ComponentScope scope;
     
@@ -1939,38 +1948,60 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 			pc=ThreadUtil.createPageContext(config, DevNullOutputStream.DEV_NULL_OUTPUT_STREAM, "localhost", "/","", new Cookie[0], parr, parr, new StructImpl());
 		}
 		
+		// reading fails for serialized data from Railo version 4.1.2.002
+		String name = in.readUTF();
+		
+		if(name.startsWith("evaluateComponent('") && name.endsWith("})")) {
+			readExternalOldStyle(pc, name);
+			return;
+		}
+		
+		String md5 = in.readUTF();
+		Struct _this = Caster.toStruct(in.readObject(),null);
+		Struct _var = Caster.toStruct(in.readObject(),null);
+	    
 		try {
-			// MUST do serialisation more like the cloning way
-			ComponentImpl other=(ComponentImpl) new CFMLExpressionInterpreter().interpret(pc,in.readUTF());
-			
-			
-			this._data=other._data;
-			this._udfs=other._udfs;
-			setOwner(_udfs);
-			setOwner(_data);
-			this.afterConstructor=other.afterConstructor;
-			this.base=other.base;
-			//this.componentPage=other.componentPage;
-			this.pageSource=other.pageSource;
-			this.constructorUDFs=other.constructorUDFs;
-			this.dataMemberDefaultAccess=other.dataMemberDefaultAccess;
-			this.interfaceCollection=other.interfaceCollection;
-			this.isInit=other.isInit;
-			this.properties=other.properties;
-			this.scope=other.scope;
-			this.top=this;
-			this._triggerDataMember=other._triggerDataMember;
-			this.hasInjectedFunctions=other.hasInjectedFunctions;
-			this.useShadow=other.useShadow;
-			this.entity=other.entity;
-			
-			
-		} catch (PageException e) {
-			throw new IOException(e.getMessage());
+			ComponentImpl other=(ComponentImpl)EvaluateComponent.invoke(pc, name, md5, _this,_var);
+			_readExternal(other);
+		}
+		catch (PageException e) {
+			throw ExceptionUtil.toIOException(e);
 		}
 		finally {
 			if(pcCreated)ThreadLocalPageContext.release();
 		}
+	}
+
+	private void readExternalOldStyle(PageContext pc, String str) throws IOException {
+		try {
+			ComponentImpl other=(ComponentImpl) new CFMLExpressionInterpreter().interpret(pc,str);
+			_readExternal(other);
+		}
+		catch (PageException e) {
+			throw ExceptionUtil.toIOException(e);
+		}
+	}
+
+	private void _readExternal(ComponentImpl other) {
+		this._data=other._data;
+		this._udfs=other._udfs;
+		setOwner(_udfs);
+		setOwner(_data);
+		this.afterConstructor=other.afterConstructor;
+		this.base=other.base;
+		//this.componentPage=other.componentPage;
+		this.pageSource=other.pageSource;
+		this.constructorUDFs=other.constructorUDFs;
+		this.dataMemberDefaultAccess=other.dataMemberDefaultAccess;
+		this.interfaceCollection=other.interfaceCollection;
+		this.isInit=other.isInit;
+		this.properties=other.properties;
+		this.scope=other.scope;
+		this.top=this;
+		this._triggerDataMember=other._triggerDataMember;
+		this.hasInjectedFunctions=other.hasInjectedFunctions;
+		this.useShadow=other.useShadow;
+		this.entity=other.entity;
 	}
 
 	private void  setOwner(Map<Key,? extends Member> data) {
@@ -1985,12 +2016,46 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	}
 
 	public void writeExternal(ObjectOutput out) throws IOException {
-		try {
-			out.writeUTF(new ScriptConverter().serialize(this));
+		ComponentWrap cw = new ComponentWrap(Component.ACCESS_PRIVATE,this);  
+        Struct _this=new StructImpl();
+		Struct _var=new StructImpl();
+		
+		
+		// this scope (removing all UDFs)
+		Object member;
+	    {
+	    	Iterator<Entry<Key, Object>> it = cw.entryIterator();
+	        Entry<Key, Object> e;
+	        while(it.hasNext()) {
+	            e = it.next();
+	            member = e.getValue();
+	            if(member instanceof UDF)continue;
+	            _this.setEL(e.getKey(), member);
+	        }
 		}
-		catch (ConverterException e) {
-			throw ExceptionUtil.toIOException(e);
-		}
+		
+	    
+	    // variables scope (removing all UDFs and key "this")
+	    {
+        	ComponentScope scope = getComponentScope();
+        	Iterator<Entry<Key, Object>> it = scope.entryIterator();
+            Entry<Key, Object> e;
+        	Key k;
+        	while(it.hasNext()) {
+        		e = it.next();
+        		k = e.getKey();
+                if(KeyConstants._THIS.equalsIgnoreCase(k))continue;
+                member = e.getValue();
+                if(member instanceof UDF)continue;
+	            _var.setEL(e.getKey(), member);
+            }
+        }
+	    
+	    out.writeUTF(getAbsName());
+		out.writeUTF(ComponentUtil.md5(cw));
+		out.writeObject(_this);
+		out.writeObject(_var);
+		
 	}
 
 	@Override

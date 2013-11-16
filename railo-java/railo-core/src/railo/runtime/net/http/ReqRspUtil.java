@@ -1,7 +1,6 @@
 package railo.runtime.net.http;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -302,7 +301,7 @@ public final class ReqRspUtil {
 
 	public static boolean isThis(HttpServletRequest req, String url) { 
 		try {
-			return isThis(req, HTTPUtil.toURL(url));
+			return isThis(req, HTTPUtil.toURL(url,true));
 		} 
 		catch (Throwable t) {
 			return false;
@@ -504,5 +503,15 @@ public final class ReqRspUtil {
     	break;
     	}
 		return defaultValue;
+	}
+
+	public static boolean identical(HttpServletRequest left, HttpServletRequest right) { 
+		if(left==right) return true;
+		if(left instanceof HTTPServletRequestWrap) 
+			left=((HTTPServletRequestWrap)left).getOriginalRequest();
+		if(right instanceof HTTPServletRequestWrap) 
+			right=((HTTPServletRequestWrap)right).getOriginalRequest();
+		if(left==right) return true;
+		return false;
 	}
 }
