@@ -69,9 +69,9 @@ public class CFMLWriterImpl extends CFMLWriter {
     /**
      * @throws IOException
      */
-    protected void initOut() throws IOException {
+    protected void initOut(boolean allowGzip) throws IOException {
         if (out == null) {
-        	out=getOutputStream();
+        	out=getOutputStream(allowGzip);
             //out=response.getWriter();
         }
     }
@@ -197,7 +197,7 @@ public class CFMLWriterImpl extends CFMLWriter {
         	if(showVersion)response.setHeader("Railo-Version", VERSION);
         	
         }
-    	initOut();
+    	initOut(false);
     	byte[] barr = _toString(true).getBytes(response.getCharacterEncoding());
         
     	if(cacheItem!=null && cacheItem.isValid()) {
@@ -276,7 +276,7 @@ public class CFMLWriterImpl extends CFMLWriter {
         	if(showVersion)response.setHeader("Railo-Version", VERSION);
             if(barr.length<=512) allowCompression=false;
             
-            out = getOutputStream();
+            out = getOutputStream(true);
 	        
         	
         	if(contentLength && !(out instanceof GZIPOutputStream))ReqRspUtil.setContentLength(response,barr.length);
@@ -297,15 +297,15 @@ public class CFMLWriterImpl extends CFMLWriter {
     } 
     
 
-    private OutputStream getOutputStream() throws IOException {
+    private OutputStream getOutputStream(boolean allowGzip) throws IOException {
     	
     	if ( allowCompression && !response.isCommitted() ){
     		
     		String encodings = ReqRspUtil.getHeader(request,"Accept-Encoding",null);
-    	    if(!StringUtil.isEmpty(encodings) && encodings.indexOf("gzip")!=-1) {
+    	    if(allowGzip && !StringUtil.isEmpty(encodings) && encodings.indexOf("gzip")!=-1) {
     	    	boolean inline=HttpServletResponseWrap.get();
     	    	if(!inline) {
-	    	    	ServletOutputStream os = response.getOutputStream();
+    	    		ServletOutputStream os = response.getOutputStream();
 	    	    	response.setHeader("Content-Encoding", "gzip");
 	        		return new GZIPOutputStream(os);
     	    	}
@@ -529,7 +529,7 @@ public class CFMLWriterImpl extends CFMLWriter {
 	 * @see railo.runtime.writer.CFMLWriter#getResponseStream()
 	 */
 	public OutputStream getResponseStream() throws IOException {
-		initOut();
+		initOut(false);
 		return out;
 	}
 

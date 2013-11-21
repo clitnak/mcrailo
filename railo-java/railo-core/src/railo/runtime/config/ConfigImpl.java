@@ -41,7 +41,6 @@ import railo.commons.lang.PhysicalClassLoader;
 import railo.commons.lang.StringUtil;
 import railo.commons.lang.SystemOut;
 import railo.commons.net.IPRange;
-import railo.commons.net.JarLoader;
 import railo.loader.engine.CFMLEngine;
 import railo.runtime.CFMLFactory;
 import railo.runtime.Component;
@@ -94,7 +93,6 @@ import railo.runtime.schedule.SchedulerImpl;
 import railo.runtime.search.SearchEngine;
 import railo.runtime.security.SecurityManager;
 import railo.runtime.spooler.SpoolerEngine;
-import railo.runtime.tag.Admin;
 import railo.runtime.type.Struct;
 import railo.runtime.type.StructImpl;
 import railo.runtime.type.UDF;
@@ -3128,27 +3126,33 @@ public abstract class ConfigImpl implements Config {
 		ORMEngine engine = ormengines.get(name);
 		if(engine==null){
 			//try {
-			boolean hasError=false;	
+			Throwable t=null;
+			
 			try {
 				engine=(ORMEngine)ClassUtil.loadInstance(ormEngineClass);
 				engine.init(pc);
 			}
-			catch (ClassException t) {
-				hasError=true;	
+			catch (ClassException ce) {
+				t=ce;	
 			}
-			catch (NoClassDefFoundError t) {
-				hasError=true;	
+			catch (NoClassDefFoundError ncfe) {
+				t=ncfe;
 			}
 			
-			if(hasError) {
+			if(t!=null) {
+				
+				
 				// try to load orm jars
-				if(JarLoader.changed(pc.getConfig(), Admin.ORM_JARS))
-					throw new ApplicationException(
-						"cannot initialize ORM Engine ["+ormEngineClass.getName()+"], make sure you have added all the required jar files",
-						"GO to the Railo Server Administrator and on the page Services/Update, click on \"Update JARs\"");
-				throw new ApplicationException(
-							"cannot initialize ORM Engine ["+ormEngineClass.getName()+"], make sure you have added all the required jar files",
-							"if you have updated the JARs in the Railo Administrator, please restart your Servlet Engine");
+				//if(JarLoader.changed(pc.getConfig(), Admin.ORM_JARS))
+				//	throw new ApplicationException(
+				//		"cannot initialize ORM Engine ["+ormEngineClass.getName()+"], make sure you have added all the required jar files");
+				ApplicationException ae = new ApplicationException(
+							"cannot initialize ORM Engine ["+ormEngineClass.getName()+"], make sure you have added all the required jar files");
+				
+				ae.setStackTrace(t.getStackTrace());
+				ae.setDetail(t.getMessage());
+				
+				
 			
 			}
 				ormengines.put(name,engine);
