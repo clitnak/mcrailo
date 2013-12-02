@@ -389,7 +389,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 			boolean needsSession, 
 			int bufferSize, 
 			boolean autoFlush) throws IOException, IllegalStateException, IllegalArgumentException {
-	   initialize(
+		initialize(
 			   (HttpServlet)servlet,
 			   (HttpServletRequest)req,
 			   (HttpServletResponse)rsp,
@@ -491,8 +491,9 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 			this.execLog=config.getExecutionLogFactory().getInstance(this);
 		if(debugger!=null)
 			debugger.init(config);
-			
-        return this;
+		
+		undefined.initialize(this);
+		return this;
 	 }
 	
 	@Override
@@ -1072,7 +1073,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
     
     @Override
     public Undefined undefinedScope() {
-        if(!undefined.isInitalized()) undefined.initialize(this);
+        //if(!undefined.isInitalized()) undefined.initialize(this);
         return undefined;
     }
     
@@ -1080,7 +1081,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
      * @return undefined scope, undefined scope is a placeholder for the scopecascading
      */
     public Undefined us() {
-    	if(!undefined.isInitalized()) undefined.initialize(this);
+    	//if(!undefined.isInitalized()) undefined.initialize(this);
     	return undefined;
     }
     
@@ -1748,7 +1749,7 @@ public final class PageContextImpl extends PageContext implements Sizeable {
 	public void handlePageException(PageException pe) {
 		if(!Abort.isSilentAbort(pe)) {
 			
-			String charEnc = rsp.getCharacterEncoding();
+			String charEnc = ReqRspUtil.getCharacterEncoding(this,rsp);
 	        if(StringUtil.isEmpty(charEnc,true)) {
 				rsp.setContentType("text/html");
 	        }
@@ -2327,12 +2328,8 @@ public final class PageContextImpl extends PageContext implements Sizeable {
             cftoken=Caster.toString(oCftoken,null);
         }
         
-        if(setCookie && applicationContext.isSetClientCookies()) {
-
-	        String domain = PageContextUtil.getCookieDomain( this );
-            cookieScope().setCookieEL(KeyConstants._cfid,cfid,CookieImpl.NEVER,false,"/", domain );
-            cookieScope().setCookieEL(KeyConstants._cftoken,cftoken,CookieImpl.NEVER,false,"/", domain );
-        }
+        if(setCookie && applicationContext.isSetClientCookies())
+	        setClientCookies();
     }
     
 
@@ -2340,13 +2337,17 @@ public final class PageContextImpl extends PageContext implements Sizeable {
         cfid=ScopeContext.getNewCFId();
         cftoken=ScopeContext.getNewCFToken();
 
-        if(applicationContext.isSetClientCookies()) {
-
-	        String domain = PageContextUtil.getCookieDomain( this );
-            cookieScope().setCookieEL(KeyConstants._cfid,cfid,CookieImpl.NEVER,false,"/", domain);
-            cookieScope().setCookieEL(KeyConstants._cftoken,cftoken,CookieImpl.NEVER,false,"/", domain);
-        }
+        if(applicationContext.isSetClientCookies())
+	        setClientCookies();
     }
+
+
+	private void setClientCookies() {
+
+		String domain = PageContextUtil.getCookieDomain( this );
+		cookieScope().setCookieEL( KeyConstants._cfid, cfid, CookieImpl.NEVER,false, "/", domain, true, true, false );
+		cookieScope().setCookieEL( KeyConstants._cftoken, cftoken, CookieImpl.NEVER,false, "/", domain, true, true, false );
+	}
     
 
     @Override
@@ -2390,12 +2391,12 @@ public final class PageContextImpl extends PageContext implements Sizeable {
     	this.locale=locale;
         HttpServletResponse rsp = getHttpServletResponse();
         
-        String charEnc = rsp.getCharacterEncoding();
+        String charEnc = ReqRspUtil.getCharacterEncoding(this,rsp);
         rsp.setLocale(locale);
         if(charEnc.equalsIgnoreCase("UTF-8")) {
         	rsp.setContentType("text/html; charset=UTF-8");
         }
-        else if(!charEnc.equalsIgnoreCase(rsp.getCharacterEncoding())) {
+        else if(!charEnc.equalsIgnoreCase(ReqRspUtil.getCharacterEncoding(this,rsp))) {
                 rsp.setContentType("text/html; charset=" + charEnc);
         }
 	}
