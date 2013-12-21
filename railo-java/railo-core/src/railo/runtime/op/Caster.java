@@ -409,7 +409,9 @@ public final class Caster {
      * @throws PageException
      */
     public static double toDoubleValue(Object o) throws PageException {
-        if(o instanceof Number) return ((Number)o).doubleValue();
+        if(o instanceof Number) {
+        	return ((Number)o).doubleValue();
+        }
         else if(o instanceof Boolean) return ((Boolean)o).booleanValue()?1:0;
         else if(o instanceof String) return toDoubleValue(o.toString(),true);
         //else if(o instanceof Clob) return toDoubleValue(toString(o));
@@ -3522,6 +3524,31 @@ public final class Caster {
             if(comp.instanceOf(strType)) return o;
             throw new ExpressionException("can't cast Component of Type ["+comp.getAbsName()+"] to ["+strType+"]");
         }
+        
+        if(strType.endsWith("[]") && Decision.isArray(o)){
+	    	String _strType=strType.substring(0,strType.length()-2);
+	    	short _type=CFTypes.toShort(_strType, false, (short)-1);
+	    	Array arr = Caster.toArray(o,null);
+	    	if(arr!=null){
+	    		
+	    		// convert the values
+	    		Iterator<Entry<Key, Object>> it = arr.entryIterator();
+	    		Array _arr=new ArrayImpl();
+	    		Entry<Key, Object> e;
+	    		Object src,trg;
+	    		boolean hasChanged=false;
+	    		while(it.hasNext()){
+	    			e = it.next();
+	    			src=e.getValue();
+	    			trg=castTo(pc, _type, _strType, src);
+	    			_arr.setEL(e.getKey(), trg);
+	    			if(src!=trg) hasChanged=true;
+	    		}
+	    		if(!hasChanged) return arr;
+	    		return _arr;
+	    	}
+	    	
+	    }
         throw new CasterException(o,strType);
     }   
     
@@ -4264,9 +4291,7 @@ public final class Caster {
 	public static BigDecimal toBigDecimal(Object o) throws PageException {
 		if(o instanceof BigDecimal) return (BigDecimal) o;
 		if(o instanceof Number) {
-			if(o instanceof Integer) return new BigDecimal(((Integer)o).intValue());
-			if(o instanceof Long) return new BigDecimal(((Long)o).longValue());
-			return new BigDecimal(((Number)o).doubleValue());
+			return new BigDecimal(((Number)o).toString());
 		}
         else if(o instanceof Boolean) return new BigDecimal(((Boolean)o).booleanValue()?1:0);
         else if(o instanceof String) return new BigDecimal(o.toString());
