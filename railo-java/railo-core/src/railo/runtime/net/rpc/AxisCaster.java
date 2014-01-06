@@ -234,6 +234,9 @@ public final class AxisCaster {
     	if(targetClass!=null) {
         	componentType = targetClass.getComponentType();
         }
+    	if (componentType == null) {
+    		componentType = targetClass;
+    	}
         
     	if(componentType!=null) {
         	rtns = (Object[]) java.lang.reflect.Array.newInstance(componentType, objs.length);
