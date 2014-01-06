@@ -238,10 +238,10 @@ public final class AxisCaster {
     		componentType = targetClass;
     	}
         
-    	if(componentType!=null) {
-        	rtns = (Object[]) java.lang.reflect.Array.newInstance(componentType, objs.length);
+    	if(componentType==null || componentType.equals(Array.class)) {
+    		rtns = new Object[objs.length];
     	}else {
-        	rtns = new Object[objs.length];
+    		rtns = (Object[]) java.lang.reflect.Array.newInstance(componentType, objs.length);
     	}
         for(int i=0;i<objs.length;i++) {
         	rtns[i]=_toAxisType(tm,null,null,objs[i],componentType,done,namespace);
