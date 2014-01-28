@@ -234,11 +234,11 @@ public final class AxisCaster {
     	if(targetClass!=null) {
         	componentType = targetClass.getComponentType();
         }
-    	if (componentType == null) {
+    	if (componentType == null && targetClass != null && !targetClass.equals(Array.class)) {
     		componentType = targetClass;
     	}
         
-    	if(componentType==null || componentType.equals(Array.class)) {
+    	if(componentType==null) {
     		rtns = new Object[objs.length];
     	}else {
     		rtns = (Object[]) java.lang.reflect.Array.newInstance(componentType, objs.length);
