@@ -876,7 +876,9 @@ int pos=data.cfml.getPos();
 			data.insideFunction=oldInsideFunction;
 		}
 		func.setEnd(data.cfml.getPosition());
-		//eval(tlt,data,func);
+		
+		if(closure) comments(data);
+
 		return func;
 	}
 	

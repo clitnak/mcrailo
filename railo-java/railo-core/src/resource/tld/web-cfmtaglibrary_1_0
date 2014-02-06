@@ -1221,6 +1221,13 @@ A return value from the CreateTimeSpan function, for example, "#CreateTimeSpan(0
 			<description>Format for Y-axis labels.</description>
 		</attribute>
 		<attribute>
+			<type>string</type>
+			<name>categoryLabelPositions</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+			<description>Label postion relative to axis: standard, up_45, up_90, down_45, down_90 or horizontal (standard) and vertical (down_90).  Default is horizontal.</description>
+		</attribute>
+		<attribute>
 			<type>number</type>
 			<name>markerSize</name>
 			<required>false</required>
@@ -5565,7 +5572,6 @@ no: the function is processed as if it were within a cfsilent tag </description>
 	an absolute URL, including the protocol (http or https) and hostname. It may optionally contain a port
 	number. Port numbers specified in the url attribute override the port attribute.</description>
 		</attribute>
-		
 		<attribute>
 			<type>boolean</type>
 			<name>encoded</name>
@@ -5575,7 +5581,6 @@ no: the function is processed as if it were within a cfsilent tag </description>
 			if set to true (default value) URL encodes the value of the attribute "URL" if necessary (no double encoding is happeing).
 			This setting has no influence on the values from httpparam type="url", for this use the attribute "encoded" from httpparam</description>
 		</attribute>
-		
 		<attribute>
 			<type>string</type>
 			<name>compression</name>
@@ -5587,8 +5592,6 @@ no: the function is processed as if it were within a cfsilent tag </description>
 - none (deprecated): use "false" instead
 </description>
 		</attribute>
-		
-		
 		<attribute>
 			<type>string</type>
 			<name>result</name>
@@ -5704,7 +5707,9 @@ no: the function is processed as if it were within a cfsilent tag </description>
 			<name>delimiter</name>
 			<required>false</required>
 			<rtexprvalue>true</rtexprvalue>
-			<description>Required for creating a query. Options are a tab or comma. Default is a comma.</description>
+			<description>Used only when creating a query from an http request that returns data in a CSV format. This
+			value specifies the Field delimiter for the CSV data. Only the first character is used. Default is a comma.
+			</description>
 		</attribute>
 		<attribute>
 			<type>string</type>
