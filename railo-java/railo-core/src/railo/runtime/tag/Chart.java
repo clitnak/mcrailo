@@ -729,7 +729,11 @@ public final class Chart extends BodyTagImpl implements Serializable {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			copy(baos, jfc,info);			
 		}
-		String src="/railo-context/graph.cfm?img="+id+"&type="+formatToString(format);
+		
+		String contextPath = pageContext.getHttpServletRequest().getContextPath();
+		contextPath = StringUtil.isEmpty(contextPath) ? "/" : contextPath+"/";
+		String src=contextPath+"railo-context/graph.cfm?img="+id+"&type="+formatToString(format);
+		
 		if(!StringUtil.isEmpty(source)) {
 			pageContext.setVariable(source, src);
 			return;
@@ -1057,6 +1061,7 @@ public final class Chart extends BodyTagImpl implements Serializable {
 	}
 
 	private void setUrl(JFreeChart chart) {
+		if(StringUtil.isEmpty(url)) return;
 		Plot plot = chart.getPlot();
 		if(plot instanceof PiePlot) {
 			PiePlot pp = (PiePlot)plot;		
@@ -1073,7 +1078,7 @@ public final class Chart extends BodyTagImpl implements Serializable {
 		else if(plot instanceof CategoryPlot) {
 			CategoryPlot cp=(CategoryPlot) plot;
 			CategoryItemRenderer renderer = cp.getRenderer();
-			renderer.setBaseItemURLGenerator(new StandardCategoryURLGenerator(url) {
+			renderer.setBaseItemURLGenerator(new StandardCategoryURLGenerator() {
 			    public String generateURL(CategoryDataset dataset, int series,int category) {
 			    	if(!StringUtil.contains(url, "?")) url += "?series=$SERIESLABEL$&category=$ITEMLABEL$&value=$VALUE$";
 			    	String retUrl=StringUtil.replace(url, "$ITEMLABEL$", URLUtilities.encode(dataset.getColumnKey(category).toString(),"UTF-8"),false,true);
@@ -1086,7 +1091,7 @@ public final class Chart extends BodyTagImpl implements Serializable {
 		else if(plot instanceof XYPlot) {
 			XYPlot cp=(XYPlot) plot;
 			XYItemRenderer renderer = cp.getRenderer();
-			renderer.setURLGenerator(new StandardXYURLGenerator(url) {
+			renderer.setURLGenerator(new StandardXYURLGenerator() {
 			    public String generateURL(XYDataset dataset, int series,int category) {
 			    	if(!StringUtil.contains(url, "?")) url += "?series=$SERIESLABEL$&category=$ITEMLABEL$&value=$VALUE$";
 			    	String itemLabel = _plotItemLables.get(category+1) != null ? _plotItemLables.get(category+1) : dataset.getX(series, category).toString();
