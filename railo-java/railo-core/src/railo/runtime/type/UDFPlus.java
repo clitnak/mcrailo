@@ -42,8 +42,6 @@ public interface UDFPlus extends UDF {
 	 public void setAccess(int access);
 	 
 	 public abstract int getReturnFormat(int defaultFormat);
-	    
-}
 
 	public abstract Object callMemberFunction(PageContext pc, Key key, Struct args) throws PageException;
 

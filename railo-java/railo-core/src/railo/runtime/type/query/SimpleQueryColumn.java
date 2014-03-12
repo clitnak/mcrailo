@@ -35,7 +35,8 @@ public class SimpleQueryColumn implements QueryColumn {
 	private ResultSet res;
 	private Cast cast;
 	private int index;
-	
+	//private Object[] data;
+
 	public SimpleQueryColumn(SimpleQuery qry, ResultSet res, Collection.Key key, int type, int index) {
 		this.qry=qry;
 		this.res=res;
@@ -356,6 +357,8 @@ public class SimpleQueryColumn implements QueryColumn {
 
 	@Override
 	public synchronized Object get(int row) throws PageException {
+		//Object sv = getStoredValue(row);
+		//if(sv!=SimpleQuery.DEFAULT_VALUE) return sv;
 		
 		try {
 			if(row!=res.getRow()) {
@@ -370,7 +373,8 @@ public class SimpleQueryColumn implements QueryColumn {
 
 	@Override
 	public synchronized Object get(int row, Object defaultValue) {
-
+		//Object sv = getStoredValue(row);
+		//if(sv!=SimpleQuery.DEFAULT_VALUE) return sv;
 		
 		try {
 			if(row!=res.getRow()) {
@@ -383,9 +387,17 @@ public class SimpleQueryColumn implements QueryColumn {
 		}
 	}
 	
+	/*private synchronized Object getStoredValue(int row) {
+		if(data==null) return SimpleQuery.DEFAULT_VALUE;
+		return data[row-1];
+	}
 	
 	private synchronized Object _get(int row) throws SQLException, IOException {
 
+		return cast.toCFType(null, type, res, index);
+	}*/
+	
+	private Object _get(int row) throws SQLException, IOException {
 		return cast.toCFType(null, type, res, index);
 	}
 
