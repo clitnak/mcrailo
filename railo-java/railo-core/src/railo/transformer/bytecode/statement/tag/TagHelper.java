@@ -192,8 +192,7 @@ public final class TagHelper {
 			adapter.push(hasBody);
 			adapter.invokeVirtual(currType, HAS_BODY);
 		}
-		
-		
+
 		// default attributes (get overwritten by attributeCollection because of that set before)
 		setAttributes(bc,tag,currLocal,currType, true);
 		
@@ -255,13 +254,10 @@ public final class TagHelper {
 					adapter.invokeVirtual(currType, SET_META_DATA);
 			}
 		}
-		
-		
-		
+
 		// set attributes
 		setAttributes(bc,tag,currLocal,currType,false);
-		
-		
+
 	// Body
 		if(hasBody){
 			final int state=adapter.newLocal(Types.INT_VALUE);
@@ -365,7 +361,7 @@ public final class TagHelper {
 		adapter.visitLabel(tagEnd);
 		ExpressionUtil.visitLine(bc, tag.getEnd());
 	}
-
+	
 	private static void setAttributes(BytecodeContext bc, Tag tag, int currLocal, Type currType, boolean doDefault) throws BytecodeException {
 		GeneratorAdapter adapter = bc.getAdapter();
 		Map<String,Attribute> attributes = tag.getAttributes();
