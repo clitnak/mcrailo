@@ -46,6 +46,7 @@ import railo.runtime.Component;
 import railo.runtime.ComponentScope;
 import railo.runtime.ComponentSpecificAccess;
 import railo.runtime.PageContext;
+import railo.runtime.PageContextImpl;
 import railo.runtime.component.Property;
 import railo.runtime.component.PropertyImpl;
 import railo.runtime.engine.ThreadLocalPageContext;
@@ -399,13 +400,37 @@ public final class AxisCaster {
 		CFMLExpressionInterpreter interpreter = new CFMLExpressionInterpreter();
     	for(int i=0;i<props.length;i++){
     		p=props[i];
+    		boolean converted=false;
     		k=Caster.toKey(p.getName());
     	// value
     		v=sct.get(k,null);
     		if(v==null && comp!=null)v=comp.get(k, null);
     	// default
     		
-    		if(v!=null)v=Caster.castTo(pc, p.getType(), v, false);
+    		if(v!=null) {
+    			if (p.getType().endsWith("[]")) {
+    				Class clazz = null;
+	    			try {
+	    				PhysicalClassLoader cl = (PhysicalClassLoader) ((PageContextImpl)pc).getRPCClassLoader(false);
+	    				try {
+							clazz = cl.loadClass(p.getType().substring(0,p.getType().length()-2));
+							clazz = ClassUtil.toArrayClass(clazz);
+						}
+						catch (ClassNotFoundException e) {
+							clazz = null;
+						}
+	    				
+	    			}
+	    			catch (IOException e) {
+	    				//let clazz be null
+	    			}
+	    			v = _toAxisTypeSub(tm,null,v, clazz,done);
+	    			converted = true;
+    			} else {
+    				v=Caster.castTo(pc, p.getType(), v, false);
+    			}
+
+    		}
     		else{
 	    		if(!StringUtil.isEmpty(p.getDefault())){
 	    			try {
@@ -429,7 +454,8 @@ public final class AxisCaster {
     			if(p.isRequired())throw new ExpressionException("required property ["+p.getName()+"] is not defined");
     		}
     		else {
-    			Reflector.callSetter(pojo, p.getName().toLowerCase(), _toAxisType(tm,null,null,v,targetClass,done));	
+    			if(!converted) v = _toAxisType(tm,null,null,v,targetClass,done);
+    			Reflector.callSetter(pojo, p.getName().toLowerCase(), v);	
     		}
     	}
 	}
@@ -514,6 +540,17 @@ public final class AxisCaster {
         	}
         	if(targetClass != null && !targetClass.equals(Map.class)) {
         		Object pojo= toPojo(tm,Caster.toStruct(value),targetClass,done);
+        		try	{
+        			if(type==null || type.getLocalPart().equals("anyType")) {
+        				type= new QName("http://rpc.xml.coldfusion",targetClass.getName());
+        				//print.ds("missing type for "+pojo.getClass().getName());
+        			}
+        			TypeMappingUtil.registerBeanTypeMapping(tm, pojo.getClass(), type);
+	        		
+        		}
+        		catch(Throwable fault){
+        			throw Caster.toPageException(fault);
+        		}
 	    		return pojo;
         	}
         	return toMap(tm,value,targetClass,done);
