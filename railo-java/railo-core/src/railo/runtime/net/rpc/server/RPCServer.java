@@ -266,8 +266,9 @@ public final class RPCServer{
                 /**********************************************************/
             }
             msgContext.setRequestMessage(requestMsg);
-            String url = HttpUtils.getRequestURL(req).toString().toLowerCase();
+            String url = HttpUtils.getRequestURL(req).toString();
             msgContext.setProperty(MessageContext.TRANS_URL, url);
+            msgContext.setProperty(MessageContext.WSDLGEN_INTFNAMESPACE, AxisCaster.getRequestNameSpace());
             // put character encoding of request to message context
             // in order to reuse it during the whole process.
             String requestEncoding;
@@ -722,8 +723,8 @@ public final class RPCServer{
                         MessageContext msgContext = createMessageContext(engine,request, response,component);
                         Class plugin=ClassUtil.loadClass((String)this.transport.getOption(queryHandler));
                         Method pluginMethod = plugin.getDeclaredMethod("invoke", new Class[] {msgContext.getClass()});
-
-                        msgContext.setProperty(MessageContext.TRANS_URL, HttpUtils.getRequestURL(request).toString().toLowerCase());
+                        msgContext.setProperty(MessageContext.TRANS_URL, HttpUtils.getRequestURL(request).toString());
+                        msgContext.setProperty(MessageContext.WSDLGEN_INTFNAMESPACE, AxisCaster.getRequestNameSpace());
                         //msgContext.setProperty(MessageContext.TRANS_URL, "http://DefaultNamespace");
                         msgContext.setProperty(HTTPConstants.PLUGIN_SERVICE_NAME, serviceName);
                         msgContext.setProperty(HTTPConstants.PLUGIN_NAME,handlerName);
@@ -791,10 +792,12 @@ public final class RPCServer{
         return axisServer;
     }
     
-	public static RPCServer getInstance(int id, ServletContext servletContext) throws AxisFault {
-		RPCServer server=(RPCServer) servers.get(Caster.toString(id));
+	public static RPCServer getInstance(int id, Component cfc, ServletContext servletContext) throws AxisFault {
+		System.out.println("cfc:"+cfc.getName());
+		String key = Caster.toString(id) + cfc.getName();
+		RPCServer server=(RPCServer) servers.get(key);
 		if(server==null){
-			servers.put(Caster.toString(id), server=new RPCServer(servletContext));
+			servers.put(key, server=new RPCServer(servletContext));
 		}
 		return server;
 	}

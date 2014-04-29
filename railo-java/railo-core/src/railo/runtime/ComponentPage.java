@@ -962,7 +962,7 @@ public abstract class ComponentPage extends PagePlus  {
     	}
     	// create a wsdl file
     	else {
-	    	RPCServer.getInstance(pc.getId(),pc.getServletContext())
+	    	RPCServer.getInstance(pc.getId(),component,pc.getServletContext())
 	        	.doGet(pc.getHttpServletRequest(), pc. getHttpServletResponse(), component);
     	}
     }
@@ -970,7 +970,7 @@ public abstract class ComponentPage extends PagePlus  {
     private void callWebservice(PageContext pc, Component component) throws IOException, ServletException {
     	ComponentController.set(pc, component);
     	try {
-        	RPCServer.getInstance(pc.getId(),pc.getServletContext())
+        	RPCServer.getInstance(pc.getId(),component,pc.getServletContext())
         		.doPost(pc.getHttpServletRequest(), pc. getHttpServletResponse(), component);
     	}
     	finally {
