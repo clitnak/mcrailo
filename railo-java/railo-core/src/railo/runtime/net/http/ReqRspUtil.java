@@ -36,7 +36,9 @@ import railo.runtime.config.ConfigImpl;
 import railo.runtime.converter.JavaConverter;
 import railo.runtime.converter.WDDXConverter;
 import railo.runtime.engine.ThreadLocalPageContext;
+import railo.runtime.exp.ApplicationException;
 import railo.runtime.exp.PageException;
+import railo.runtime.exp.RemoteException;
 import railo.runtime.functions.decision.IsLocalHost;
 import railo.runtime.interpreter.CFMLExpressionInterpreter;
 import railo.runtime.interpreter.JSONExpressionInterpreter;
@@ -476,44 +478,55 @@ public final class ReqRspUtil {
 		return root;
 	}
 
-	public static Object toObject(PageContext pc,byte[] data, int format, Charset charset, Object defaultValue) {
+	public static Object toObject(PageContext pc,byte[] data, int format, Charset charset) throws PageException {
 		switch(format) {
     	case UDF.RETURN_FORMAT_JSON:
-    		try{
-    			return new JSONExpressionInterpreter().interpret(pc, toString(data,charset));
-    		}
-    		catch(PageException pe){}
-    	break;
+   			return new JSONExpressionInterpreter().interpret(pc, toString(data,charset));
+
     	case UDF.RETURN_FORMAT_SERIALIZE:
-    		try{
-    			return new CFMLExpressionInterpreter().interpret(pc, toString(data,charset));
-    		}
-    		catch(PageException pe){}
-    	break;
+    		return new CFMLExpressionInterpreter().interpret(pc, toString(data,charset));
+
     	case UDF.RETURN_FORMAT_WDDX:
-    		try{
+    		try {
     			WDDXConverter converter =new WDDXConverter(pc.getTimeZone(),false,true);
     			converter.setTimeZone(pc.getTimeZone());
-    			return converter.deserialize(toString(data,charset),false);
-    		}
-    		catch(Exception pe){}
+				return converter.deserialize(toString(data,charset),false);
+			}
+			catch (Exception e) {
+				new RemoteException(e);
+			}
     	break;
     	case UDF.RETURN_FORMAT_XML:
-    		try{
-    			InputSource xml = XMLUtil.toInputSource(pc,toString(data,charset));
+
+			InputSource xml;
+			try {
+				xml = XMLUtil.toInputSource(pc,toString(data,charset));
     			InputSource validator =null;
     			return XMLCaster.toXMLStruct(XMLUtil.parse(xml,validator,false),true);
-    		}
-    		catch(Exception pe){}
+			}
+			catch (Exception e) {
+				new RemoteException(e);
+			}
+
     	break;
     	case UDFPlus.RETURN_FORMAT_JAVA:
-    		try{
-    			return JavaConverter.deserialize(new ByteArrayInputStream(data));
-    		}
-    		catch(Exception pe){}
-    	break;
-    	}
-		return defaultValue;
+			try {
+				return JavaConverter.deserialize(new ByteArrayInputStream(data));
+			}
+			catch (Exception e) {
+				new RemoteException(e);
+			}
+		}
+		throw new ApplicationException("Invalid returnFormat: "+ format);
+
+	}
+	public static Object toObject(PageContext pc,byte[] data, int format, Charset charset, Object defaultValue) {
+		try {
+			return toObject(pc,data,format,charset);
+		}
+		catch (PageException e) {
+			return defaultValue;
+		}
 	}
 
 	public static boolean identical(HttpServletRequest left, HttpServletRequest right) { 

@@ -102,7 +102,7 @@ public final class ComponentUtil {
 		if(classFile.lastModified()>=classFileOriginal.lastModified()) {
 			try {
 				Class clazz=cl.loadClass(className);
-				if(clazz!=null && !hasChangesOfChildren(classFile.lastModified(),clazz))return registerTypeMapping(clazz);
+				if(clazz!=null && !hasChangesOfChildren(classFile.lastModified(),clazz))return registerTypeMapping(clazz,component);
 			}
 			catch(Throwable t){}
 		}
@@ -154,7 +154,7 @@ public final class ComponentUtil {
 	        
 	        cl = (PhysicalClassLoader) ((PageContextImpl)pc).getRPCClassLoader(true);
 	        
-	        return registerTypeMapping(cl.loadClass(className, barr));
+	        return registerTypeMapping(cl.loadClass(className, barr),component);
         }
         catch(Throwable t) {
         	throw Caster.toPageException(t);
@@ -239,9 +239,9 @@ public final class ComponentUtil {
      * @param clazz
      * @return
      */
-    private static Class registerTypeMapping(Class clazz) throws AxisFault {
+    private static Class registerTypeMapping(Class clazz, Component c) throws AxisFault {
     	PageContext pc = ThreadLocalPageContext.get();
-    	RPCServer server=RPCServer.getInstance(pc.getId(),pc.getServletContext());
+    	RPCServer server=RPCServer.getInstance(pc.getId(),c,pc.getServletContext());
 		return registerTypeMapping(server, clazz);
     }
     /**
