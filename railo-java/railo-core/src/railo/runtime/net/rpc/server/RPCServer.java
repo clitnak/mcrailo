@@ -792,12 +792,11 @@ public final class RPCServer{
         return axisServer;
     }
     
-	public static RPCServer getInstance(int id, Component cfc, ServletContext servletContext) throws AxisFault {
-		System.out.println("cfc:"+cfc.getName());
-		String key = Caster.toString(id) + cfc.getName();
+	public static RPCServer getInstance( PageContext pc, Component cfc) throws AxisFault {
+		String key = pc.getRootTemplateDirectory() + Caster.toString(pc.getId()) + cfc.getName();
 		RPCServer server=(RPCServer) servers.get(key);
 		if(server==null){
-			servers.put(key, server=new RPCServer(servletContext));
+			servers.put(key, server=new RPCServer(pc.getServletContext()));
 		}
 		return server;
 	}
