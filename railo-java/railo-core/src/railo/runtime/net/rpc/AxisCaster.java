@@ -939,7 +939,7 @@ public final class AxisCaster {
 			urlPath = new java.net.URL(rawURL).getPath();
 		}
 		catch (MalformedURLException e) {}
-		String pathWithoutContext = urlPath.replaceFirst("/[^/]*", "");
+		String pathWithoutContext = urlPath.replaceFirst("/+[^/]*", "");
 		String physical=null;
 		try {
 			physical = pc.getBasePageSource().getResourceTranslated(pc).toString();
