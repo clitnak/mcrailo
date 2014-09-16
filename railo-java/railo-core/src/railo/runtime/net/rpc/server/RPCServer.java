@@ -47,6 +47,7 @@ import railo.commons.io.IOUtil;
 import railo.commons.lang.ClassException;
 import railo.commons.lang.ClassUtil;
 import railo.runtime.Component;
+import railo.runtime.PageContext;
 import railo.runtime.exp.PageException;
 import railo.runtime.exp.PageServletException;
 import railo.runtime.net.http.ReqRspUtil;
@@ -804,7 +805,7 @@ public final class RPCServer{
 	public void registerTypeMapping(Class clazz) {
 		String fullname = clazz.getName();//,name,packages;
 		//registerTypeMapping(clazz, new QName(AxisCaster.getRequestNameSpace(),fullname));
-		registerTypeMapping(clazz, new QName(AxisCaster.getRequestDefaultNameSpace(),fullname));
+		registerTypeMapping(clazz, new QName(AxisCaster.getRequestNameSpace(),fullname));
 	}
 	
 	private void registerTypeMapping(Class clazz,QName qname) {

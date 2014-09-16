@@ -588,7 +588,7 @@ public final class AxisCaster {
         		Object pojo= toPojo(null,tm,null,null,(Component)value,done);
         		try	{
         			if(type==null || type.getLocalPart().equals("anyType")) {
-        				type= new QName(getRequestDefaultNameSpace(),pojo.getClass().getName());
+        				type= new QName(getRequestNameSpace(),pojo.getClass().getName());
         				//type= new QName(getRequestNameSpace(),pojo.getClass().getName());
         				//print.ds("missing type for "+pojo.getClass().getName());
         			}
@@ -943,9 +943,7 @@ public final class AxisCaster {
 		String physical=null;
 		try {
 			physical = pc.getBasePageSource().getResourceTranslated(pc).toString();
-		} catch (PageException e) {
-			physical = null;
-		}
+		} catch (PageException e) { }
 		try {
 			pathWithoutContext = _matchPhysicalCase( physical, pathWithoutContext );
 		}
@@ -958,8 +956,8 @@ public final class AxisCaster {
 		//matching case is better than lower-casing it because 
 		if(physical == null) return urlpath;
 		
-		String[] urlArray = ListUtil.toStringArray(ListUtil.listToArrayRemoveEmpty(urlpath,"\\/",false));
-		String[] pathArray =  ListUtil.toStringArray(ListUtil.listToArrayRemoveEmpty(physical,"\\/",false));
+		String[] urlArray = ListUtil.toStringArray(ListUtil.listToArrayRemoveEmpty(urlpath,"\\/"));
+		String[] pathArray =  ListUtil.toStringArray(ListUtil.listToArrayRemoveEmpty(physical,"\\/"));
 		int pathPlace = pathArray.length-1;
 		for(int i = urlArray.length-1; i>=0; i--) {
 			if(pathPlace < 0) break;
