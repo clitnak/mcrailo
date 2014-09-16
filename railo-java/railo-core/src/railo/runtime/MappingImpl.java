@@ -148,6 +148,44 @@ public final class MappingImpl implements Mapping {
     public ClassLoader getClassLoaderForArchive() {
         return archiveClassLoader;
     }
+
+
+    public Class<?> loadClass(String className) {
+    	Class<?> clazz;
+    	if(isPhysicalFirst()) {
+			clazz=loadClassPhysical(className);
+			if(clazz!=null) return clazz;
+			clazz=loadClassArchive(className);
+			if(clazz!=null) return clazz;
+		}
+    	
+    	clazz=loadClassArchive(className);
+		if(clazz!=null) return clazz;
+    	clazz=loadClassPhysical(className);
+		if(clazz!=null) return clazz;
+		
+		return null;
+	}
+
+    private Class<?> loadClassArchive(String className) {
+		if(archiveClassLoader==null) return null;
+    	try{
+			return archiveClassLoader.loadClass(className);
+		}
+		catch(Throwable t){}
+		return null;
+	}
+    
+    private Class<?> loadClassPhysical(String className) {
+    	if(pclCollection==null) return null;
+		// first we check 
+		try{
+			return pclCollection.loadClass(className);
+		}
+		catch(Throwable t){}
+		
+		return null;
+	}
     
     public PCLCollection touchPCLCollection() throws IOException {
     	
@@ -269,21 +307,21 @@ public final class MappingImpl implements Mapping {
 	
 
 	@Override
-    public PageSource getPageSource(String realPath) {
+    public PageSource getPageSource(String relPath) {
     	boolean isOutSide = false;
-		realPath=realPath.replace('\\','/');
-		if(realPath.indexOf('/')!=0) {
-		    if(realPath.startsWith("../")) {
+		relPath=relPath.replace('\\','/');
+		if(relPath.indexOf('/')!=0) {
+		    if(relPath.startsWith("../")) {
 				isOutSide=true;
 			}
-			else if(realPath.startsWith("./")) {
-				realPath=realPath.substring(1);
+			else if(relPath.startsWith("./")) {
+				relPath=relPath.substring(1);
 			}
 			else {
-				realPath="/"+realPath;
+				relPath="/"+relPath;
 			}
 		}
-		return getPageSource(realPath,isOutSide);
+		return getPageSource(relPath,isOutSide);
     }
     
     @Override
@@ -447,4 +485,5 @@ public final class MappingImpl implements Mapping {
 	public boolean getDotNotationUpperCase(){
 		return ((ConfigImpl)config).getDotNotationUpperCase();
 	}
+
 }

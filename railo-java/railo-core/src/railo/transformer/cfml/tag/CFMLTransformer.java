@@ -323,14 +323,14 @@ public final class CFMLTransformer {
 	
 	/**
 	 * Liest einen Kommentar ein, Kommentare werden nicht in die CFXD ￼bertragen sondern verworfen.
-	 * Komentare k￶nnen auch Kommentare enthalten.
+	 * Komentare koennen auch Kommentare enthalten.
 	 * <br />
 	 * EBNF:<br />
 	 * <code>"<!---" {?-"--->"} "--->";</code>
 	 * @throws TemplateException
 	 */
 
-	public static void comment(CFMLString cfml,boolean removeSpace) throws TemplateException {
+	private static void comment(CFMLString cfml,boolean removeSpace) throws TemplateException {
 		if(!removeSpace) {
 			comment(cfml);
 		}

@@ -14,6 +14,7 @@ import railo.runtime.cache.tag.CacheItem;
 import railo.runtime.cache.tag.query.QueryCacheItem;
 import railo.runtime.config.ConfigImpl;
 import railo.runtime.config.ConfigWebImpl;
+import railo.runtime.config.ConfigWebUtil;
 import railo.runtime.config.Constants;
 import railo.runtime.db.DataSource;
 import railo.runtime.db.DatasourceConnection;
@@ -281,10 +282,6 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 				this.cachedWithin="request";
 				return;
 			}
-			if("smart".equalsIgnoreCase(str)) {
-				this.cachedWithin="smart";
-				return;
-			}
 		}
 		setCachedwithin(Caster.toTimespan(cachedwithin));
 	}
@@ -480,21 +477,22 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 		if(clearCache) {
 			hasCached=false;
 			String id = CacheHandlerFactory.createId(sql,datasource!=null?datasource.getName():null,username,password);
-			CacheHandler ch = CacheHandlerFactory.query.getInstance(pageContext.getConfig(), CacheHandlerFactory.TYPE_TIMESPAN);
+			CacheHandler ch = ConfigWebUtil.getCacheHandlerFactories(pageContext.getConfig()).query.getInstance(pageContext.getConfig(), CacheHandlerFactory.TYPE_TIMESPAN);
 			ch.remove(pageContext, id);
-			//pageContext.getQueryCache().remove(pageContext,sql,datasource!=null?datasource.getName():null,username,password);
 		}
 		else if(hasCached) {
 			String id = CacheHandlerFactory.createId(sql,datasource!=null?datasource.getName():null,username,password);
-			CacheHandler ch = CacheHandlerFactory.query.getInstance(pageContext.getConfig(), cachedWithin);
-			cacheType=ch.label();
-			CacheItem ci = ch.get(pageContext, id);
-			if(ci instanceof QueryCacheItem) {
-				QueryCacheItem ce = (QueryCacheItem) ci;
-				if(ce.isCachedAfter(cachedAfter))
-					query= ce.query;
+			CacheHandler ch = ConfigWebUtil.getCacheHandlerFactories(pageContext.getConfig()).query.getInstance(pageContext.getConfig(), cachedWithin);
+			if(ch!=null) {
+				cacheType=ch.label();
+				CacheItem ci = ch.get(pageContext, id);
+				
+				if(ci instanceof QueryCacheItem) {
+					QueryCacheItem ce = (QueryCacheItem) ci;
+					if(ce.isCachedAfter(cachedAfter))
+						query= ce.query;
+				}
 			}
-			//query=pageContext.getQueryCache().getQuery(pageContext,sql,datasource!=null?datasource.getName():null,username,password,cachedafter);
 		}
 		
 		
@@ -537,13 +535,8 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 				DateTimeImpl cachedBefore = null;
 				//if(cachedWithin!=null)
 				String id = CacheHandlerFactory.createId(sql,datasource!=null?datasource.getName():null,username,password);
-				CacheHandler ch = CacheHandlerFactory.query.getInstance(pageContext.getConfig(), cachedWithin);
+				CacheHandler ch = ConfigWebUtil.getCacheHandlerFactories(pageContext.getConfig()).query.getInstance(pageContext.getConfig(), cachedWithin);
 				ch.set(pageContext, id,cachedWithin,new QueryCacheItem(query));
-				
-				//cachedBefore=new DateTimeImpl(pageContext,System.currentTimeMillis()+cachedWithin.getMillis(),false);
-	            //pageContext.getQueryCache().set(pageContext,sql,datasource!=null?datasource.getName():null,username,password,query,cachedBefore);
-                
-                
 			}
 			exe=query.getExecutionTime();
 		}

@@ -18,12 +18,21 @@ import org.hibernate.tuple.Instantiator;
 import org.hibernate.tuple.entity.AbstractEntityTuplizer;
 import org.hibernate.tuple.entity.EntityMetamodel;
 
+import railo.commons.lang.StringUtil;
 import railo.runtime.Component;
 import railo.runtime.ComponentScope;
+import railo.runtime.engine.ThreadLocalPageContext;
+import railo.runtime.exp.PageException;
+import railo.runtime.op.Caster;
+import railo.runtime.op.Decision;
 import railo.runtime.orm.hibernate.CommonUtil;
+import railo.runtime.orm.hibernate.HBMCreator;
+import railo.runtime.orm.hibernate.HibernateCaster;
 import railo.runtime.orm.hibernate.HibernateUtil;
 import railo.runtime.orm.hibernate.tuplizer.accessors.CFCAccessor;
 import railo.runtime.orm.hibernate.tuplizer.proxy.CFCHibernateProxyFactory;
+import railo.runtime.type.Struct;
+import railo.runtime.type.util.KeyConstants;
 
 
 public class AbstractEntityTuplizerImpl extends AbstractEntityTuplizer {
@@ -46,14 +55,38 @@ public class AbstractEntityTuplizerImpl extends AbstractEntityTuplizer {
 
 	private Serializable toIdentifier(Serializable id) {
 		if(id instanceof Component) {
-			HashMap<String, String> map = new HashMap<String, String>();
+			HashMap<String, Object> map = new HashMap<String, Object>();
 			Component cfc=(Component) id;
 			ComponentScope scope = cfc.getComponentScope();
 			railo.runtime.component.Property[] props = HibernateUtil.getIDProperties(cfc, true,true);
-			String name,value;
+			railo.runtime.component.Property p;
+			String name;
+			Object value;
 			for(int i=0;i<props.length;i++){
-				name=props[i].getName();
-				value=CommonUtil.toString(scope.get(CommonUtil.createKey(name),null),null);
+				p=props[i];
+				name=p.getName();
+				value=scope.get(CommonUtil.createKey(name),null);
+				String type=p.getType();
+				if(Decision.isAnyType(type)) {
+					type="string";
+					try {
+						Object o=p.getMetaData();
+						if(o instanceof Struct) {
+							Struct meta=(Struct) o;
+							String gen = Caster.toString(meta.get(KeyConstants._generator, null),null);
+							if(!StringUtil.isEmpty(gen)){
+								type=HBMCreator.getDefaultTypeForGenerator(gen, "string");
+							}
+						}
+					}
+					catch (Throwable t) {}
+				}
+
+				try {
+					value=HibernateCaster.toHibernateValue(ThreadLocalPageContext.get(), value, type);
+				}
+				catch (PageException pe) {}
+
 				map.put(name, value);
 			}
 			return map;

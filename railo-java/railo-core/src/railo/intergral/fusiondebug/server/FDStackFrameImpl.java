@@ -40,9 +40,6 @@ public class FDStackFrameImpl implements IFDStackFrame {
  
 	private PageContextImpl pc;
 	private FDThreadImpl thread;
-
-	//private StackTraceElement trace;
-
 	private PageSource ps;
 
 	private int line;
@@ -208,7 +205,7 @@ public class FDStackFrameImpl implements IFDStackFrame {
 
 	@Override
 	public String getFrameInformation() {
-		return ps.getFullRealpath();
+		return ps.getFullRelPath();
 	}
 	
 	public String toString(){

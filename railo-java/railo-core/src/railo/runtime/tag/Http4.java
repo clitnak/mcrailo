@@ -725,7 +725,7 @@ public final class Http4 extends BodyTagImpl implements Http {
     		// Form
     			else if(type.equals("formfield") || type.equals("form")) {
     				hasForm=true;
-    				if(this.method==METHOD_GET) throw new ApplicationException("httpparam type formfield can't only be used, when method of the tag http equal post");
+    				if(this.method==METHOD_GET) throw new ApplicationException("httpparam with type formfield can only be used when the method attribute of the parent http tag is set to post");
     				if(post!=null){
     					if(doMultiPart)	{
     						parts.add(
@@ -1459,7 +1459,7 @@ public final class Http4 extends BodyTagImpl implements Http {
 		// Form
 			else if(type.equals("formfield") || type.equals("form")) {
 				hasForm=true;
-				if(http.method==METHOD_GET) throw new ApplicationException("httpparam type formfield can't only be used, when method of the tag http equal post");
+				if(http.method==METHOD_GET) throw new ApplicationException("httpparam with type formfield can only be used when the method attribute of the parent http tag is set to post");
 				if(post!=null){
 					if(doMultiPart){
 						parts.add(
@@ -1763,11 +1763,11 @@ public final class Http4 extends BodyTagImpl implements Http {
     /**
      * merge to pathes to one
      * @param current
-     * @param realPath
+     * @param relPath
      * @return
      * @throws MalformedURLException
      */
-    public static String mergePath(String current, String realPath) throws MalformedURLException {
+    public static String mergePath(String current, String relPath) throws MalformedURLException {
         
         // get current directory
         String currDir;
@@ -1777,18 +1777,18 @@ public final class Http4 extends BodyTagImpl implements Http {
         
         // merge together
         String path;
-        if(realPath.startsWith("./"))path=currDir+realPath.substring(2);
-        else if(realPath.startsWith("/"))path=realPath;
-        else if(!realPath.startsWith("../"))path=currDir+realPath;
+        if(relPath.startsWith("./"))path=currDir+relPath.substring(2);
+        else if(relPath.startsWith("/"))path=relPath;
+        else if(!relPath.startsWith("../"))path=currDir+relPath;
         else {
-            while(realPath.startsWith("../") || currDir.length()==0) {
-                realPath=realPath.substring(3);
+            while(relPath.startsWith("../") || currDir.length()==0) {
+                relPath=relPath.substring(3);
                 currDir=currDir.substring(0,currDir.length()-1);
                 int index = currDir.lastIndexOf('/');
-                if(index==-1)throw new MalformedURLException("invalid realpath definition for URL");
+                if(index==-1)throw new MalformedURLException("invalid relpath definition for URL");
                 currDir=currDir.substring(0,index+1);
             }
-            path=currDir+realPath;
+            path=currDir+relPath;
         }
         
         return path;

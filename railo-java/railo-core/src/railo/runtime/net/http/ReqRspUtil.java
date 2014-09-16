@@ -474,7 +474,7 @@ public final class ReqRspUtil {
 	public static String getRootPath(ServletContext sc) {
 		if(sc==null) throw new RuntimeException("cannot determine webcontext root, because the ServletContext is null");
 		String root = sc.getRealPath("/");
-		if(root==null) throw new RuntimeException("cannot determinae webcontext root, the ServletContext from class ["+sc.getClass().getName()+"] is returning null for the method call sc.getRealPath(\"/\"), possibly due to configuration problem.");
+		if(root==null) throw new RuntimeException("cannot determinae webcontext root, the ServletContext from class ["+sc.getClass().getName()+"] is returning null for the method call sc.getRelPath(\"/\"), possibly due to configuration problem.");
 		return root;
 	}
 
@@ -565,5 +565,20 @@ public final class ReqRspUtil {
 		cookie.setSecure(false);
 		cookie.setPath("/");
 		rsp.addCookie(cookie);
+	}
+
+	/**
+	 * if encodings fails the given url is returned
+	 * @param rsp
+	 * @param url
+	 * @return
+	 */
+	public static String encodeRedirectURLEL(HttpServletResponse rsp, String url) {
+		try{
+			return rsp.encodeRedirectURL(url);
+		}
+		catch(Throwable t){
+			return url;
+		}
 	}
 }

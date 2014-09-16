@@ -7396,6 +7396,10 @@ Valid only for cfinput type="text".</description>
 		<tag-class>railo.runtime.tag.Insert</tag-class>
 		<body-content>empty</body-content>
 		<body-rtexprvalue>false</body-rtexprvalue>
+		<script>
+			<type>multiple</type>
+			<rtexprvalue>true</rtexprvalue>
+		</script>
 		<description>Inserts records in data sources.</description>
 		<attribute-type>fixed</attribute-type>
 		<attribute>
@@ -8125,6 +8129,7 @@ Valid only for cfinput type="text".</description>
 		<attribute>
 			<type>string</type>
 			<name>index</name>
+			<alias>key</alias>
 			<required>false</required>
 			<rtexprvalue>true</rtexprvalue>
 			<description>Index value. Railo sets it to from value and increments or decrements by step value, until it equals to value.</description>
@@ -8227,6 +8232,7 @@ Valid only for cfinput type="text".</description>
 		<attribute>
 			<type>string</type>
 			<name>item</name>
+			<alias>value</alias>
 			<required>false</required>
 			<rtexprvalue>true</rtexprvalue>
 			<description>Key for the collection</description>
@@ -8906,6 +8912,10 @@ Each type-value pair must start with a hyphen.</description>
 		<tag-class>railo.runtime.tag.ObjectCache</tag-class>
 		<body-content>empty</body-content>
 		<body-rtexprvalue>true</body-rtexprvalue>
+		<script>
+			<type>multiple</type>
+			<rtexprvalue>true</rtexprvalue>
+		</script>
 		<description>Flushes the query cache or returns the current size.</description>
 		<attribute-type>fixed</attribute-type>
 		<attribute>
@@ -10291,6 +10301,17 @@ To use cached data, the current query must use the same SQL statement, data sour
 	also specify the list attribute.</description>
 		</attribute>
 	</tag>
+	<!-- RailoConfiguration -->
+	<tag>
+		<name>RailoConfiguration</name>
+		<tag-class>railo.runtime.tag.RailoConfiguration</tag-class>
+		<handle-exception>false</handle-exception>
+		<body-content>must</body-content>
+		<body-rtexprvalue>false</body-rtexprvalue>
+		<status>hidden</status>
+		<attribute-type>dynamic</attribute-type>
+		<description>Protects Railo-web.xml from LFI</description>
+	</tag>
 	<!-- Registry -->
 	<tag>
 		<name>registry</name>
@@ -11602,59 +11623,6 @@ dWord: creates a value of 0 (zero)</description>
 			if set to false the content to body is ignored and not disabled when a failure in the body of the tag occur.</description>
 		</attribute>
 	</tag>
-	
-	<!-- SmartCache -->
-	<tag>
-		<name>SmartCache</name>
-		<tag-class>railo.runtime.tag.SmartCache</tag-class>
-		<body-content>empty</body-content>
-		<body-rtexprvalue>false</body-rtexprvalue>
-		<handle-exception>false</handle-exception>
-		<status>hidden</status>
-		<script>
-			<type>multiple</type>
-			<rtexprvalue>true</rtexprvalue>
-		</script>
-		<description></description>
-		<attribute-type>fixed</attribute-type>
-		<attribute>
-			<type>string</type>
-			<name>action</name>
-			<required>true</required>
-			<rtexprvalue>true</rtexprvalue>
-			<description></description>
-		</attribute>
-		<attribute>
-			<type>string</type>
-			<name>type</name>
-			<values>include,query,function</values>
-			<required>false</required>
-			<rtexprvalue>true</rtexprvalue>
-			<description>type of the data you need, if not defined all types are returned</description>
-		</attribute>
-		<attribute>
-			<type>string</type>
-			<name>returnvariable</name>
-			<required>false</required>
-			<rtexprvalue>true</rtexprvalue>
-			<description></description>
-		</attribute>
-		<attribute>
-			<type>any</type>
-			<name>entryhash</name>
-			<required>false</required>
-			<rtexprvalue>true</rtexprvalue>
-			<description></description>
-		</attribute>
-		<attribute>
-			<type>any</type>
-			<name>timespan</name>
-			<required>false</required>
-			<rtexprvalue>true</rtexprvalue>
-			<description></description>
-		</attribute>
-	</tag>
-	
 	
 	<!-- Slider -->
 	<tag>
@@ -13423,6 +13391,10 @@ If you terminate a thread, the thread scope includes an ERROR metadata structure
 		<tag-class>railo.runtime.tag.Update</tag-class>
 		<body-content>empty</body-content>
 		<body-rtexprvalue>false</body-rtexprvalue>
+		<script>
+			<type>multiple</type>
+			<rtexprvalue>true</rtexprvalue>
+		</script>
 		<description>Updates existing records in data sources.</description>
 		<attribute-type>fixed</attribute-type>
 		<attribute>

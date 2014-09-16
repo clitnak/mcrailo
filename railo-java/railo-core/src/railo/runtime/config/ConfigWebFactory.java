@@ -9,12 +9,14 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,6 +37,7 @@ import railo.commons.collection.MapFactory;
 import railo.commons.date.TimeZoneUtil;
 import railo.commons.digest.Hash;
 import railo.commons.digest.MD5;
+import railo.commons.io.CharsetUtil;
 import railo.commons.io.DevNullOutputStream;
 import railo.commons.io.FileUtil;
 import railo.commons.io.IOUtil;
@@ -316,7 +319,24 @@ public final class ConfigWebFactory extends ConfigFactory {
 			TagLibException, FunctionLibException {
 		ThreadLocalConfig.register(config);
 		// fix
-		if (ConfigWebAdmin.fixS3(doc) || ConfigWebAdmin.fixPSQ(doc) || ConfigWebAdmin.fixLogging(cs,config,doc)) {
+		boolean reload=false;
+		if(ConfigWebAdmin.fixLFI(doc)) {
+			String xml = XMLCaster.toString(doc);
+			xml=StringUtil.replace(xml, "<railo-configuration", "<cfRailoConfiguration",false);
+			xml=StringUtil.replace(xml, "</railo-configuration", "</cfRailoConfiguration",false);
+			IOUtil.write(config.getConfigFile(), xml, CharsetUtil.UTF8, false);
+			try {
+				doc = ConfigWebFactory.loadDocument(config.getConfigFile());
+			}
+			catch (SAXException e) {
+			}
+		}
+		if(ConfigWebAdmin.fixSalt(doc)) reload=true;
+		if(ConfigWebAdmin.fixS3(doc)) reload=true;
+		if(ConfigWebAdmin.fixPSQ(doc)) reload=true;
+		if(ConfigWebAdmin.fixLogging(cs,config,doc)) reload=true;
+		
+		if (reload) {
 			XMLCaster.writeTo(doc, config.getConfigFile());
 			try {
 				doc = ConfigWebFactory.loadDocument(config.getConfigFile());
@@ -981,9 +1001,14 @@ public final class ConfigWebFactory extends ConfigFactory {
 		if (!ctDir.exists())
 			ctDir.mkdirs();
 
-		Resource f = binDir.getRealResource("jacob.dll");
-		if (!f.exists())
-			createFileFromResourceEL("/resource/bin/jacob.dll", f);
+		// Jacob
+		if (SystemUtil.isWindows()) {
+			String name = (SystemUtil.getJREArch() == SystemUtil.ARCH_64) ? "jacob-x64.dll" : "jacob-x86.dll";
+			Resource jacob = binDir.getRealResource(name);
+			if (!jacob.exists()) {
+				createFileFromResourceEL("/resource/bin/" + name, jacob);
+			}
+		}
 
 		Resource storDir = configDir.getRealResource("storage");
 		if (!storDir.exists())
@@ -995,6 +1020,7 @@ public final class ConfigWebFactory extends ConfigFactory {
 
 		// remove old cacerts files, they are now only in the server context
 		Resource secDir = configDir.getRealResource("security");
+		Resource f = null;
 		if (secDir.exists()) {
 			f = secDir.getRealResource("cacerts");
 			if (f.exists())
@@ -1029,7 +1055,7 @@ public final class ConfigWebFactory extends ConfigFactory {
 
 		f = contextDir.getRealResource(Constants.APP_CFM);
 		if (!f.exists())
-			createFileFromResourceEL("/resource/context/application.cfm", f);
+			createFileFromResourceEL("/resource/context/Application.cfm", f);
 
 		f = contextDir.getRealResource("form.cfm");
 		if (!f.exists() || doNew)
@@ -2046,32 +2072,38 @@ public final class ConfigWebFactory extends ConfigFactory {
 		// call static init once per driver
 		{
 			// group by classes
-			Map _caches = new HashMap();
-			Iterator it = caches.entrySet().iterator();
-			Map.Entry entry;
-			ArrayList list;
-			while (it.hasNext()) {
-				entry = (Entry) it.next();
-				cc = (CacheConnection) entry.getValue();
-				list = (ArrayList) _caches.get(cc.getClazz());
-				if (list == null) {
-					list = new ArrayList();
-					_caches.put(cc.getClazz(), list);
+			final Map<Class<?>,List<CacheConnection>> _caches = new HashMap<Class<?>,List<CacheConnection>>();
+			{
+				Iterator<Entry<String, CacheConnection>> it = caches.entrySet().iterator();
+				Entry<String, CacheConnection> entry;
+				List<CacheConnection> list;
+				while (it.hasNext()) {
+					entry = it.next();
+					cc = entry.getValue();
+					list = _caches.get(cc.getClazz());
+					if (list == null) {
+						list = new ArrayList<CacheConnection>();
+						_caches.put(cc.getClazz(), list);
+					}
+					list.add(cc);
 				}
-				list.add(cc);
 			}
-
 			// call
-			it = _caches.entrySet().iterator();
-			Class clazz;
+			Iterator<Entry<Class<?>, List<CacheConnection>>> it = _caches.entrySet().iterator();
+			Entry<Class<?>, List<CacheConnection>> entry;
+			Class<?> clazz;
+			List<CacheConnection> list;
 			while (it.hasNext()) {
-				entry = (Entry) it.next();
-				list = (ArrayList) entry.getValue();
-				clazz = (Class) entry.getKey();
+				entry = it.next();
+				list = entry.getValue();
+				clazz = entry.getKey();
 				try {
 					Method m = clazz.getMethod("init", new Class[] { Config.class, String[].class, Struct[].class });
-
-					m.invoke(null, new Object[] { config, _toCacheNames(list), _toArguments(list) });
+					if(Modifier.isStatic(m.getModifiers()))
+						m.invoke(null, new Object[] { config, _toCacheNames(list), _toArguments(list) });
+					else
+						SystemOut.print(config.getErrWriter(), "method [init(Config,String[],Struct[]):void] for class [" + clazz.getName() + "] is not static");
+					
 				}
 				catch (InvocationTargetException e) {
 					e.getTargetException().printStackTrace();
@@ -2165,26 +2197,22 @@ public final class ConfigWebFactory extends ConfigFactory {
 		}
 	}
 
-	private static Struct[] _toArguments(ArrayList list) {
-		Iterator it = list.iterator();
+	private static Struct[] _toArguments(List<CacheConnection> list) {
+		Iterator<CacheConnection> it = list.iterator();
 		Struct[] args = new Struct[list.size()];
-		CacheConnection cc;
 		int index = 0;
 		while (it.hasNext()) {
-			cc = (CacheConnection) it.next();
-			args[index++] = cc.getCustom();
+			args[index++] = it.next().getCustom();
 		}
 		return args;
 	}
 
-	private static String[] _toCacheNames(ArrayList list) {
-		Iterator it = list.iterator();
+	private static String[] _toCacheNames(List<CacheConnection> list) {
+		Iterator<CacheConnection> it = list.iterator();
 		String[] names = new String[list.size()];
-		CacheConnection cc;
 		int index = 0;
 		while (it.hasNext()) {
-			cc = (CacheConnection) it.next();
-			names[index++] = cc.getName();
+			names[index++] = it.next().getName();
 		}
 		return names;
 	}
@@ -2202,21 +2230,6 @@ public final class ConfigWebFactory extends ConfigFactory {
 		if (StringUtil.startsWithIgnoreCase(str, "encrypted:"))
 			return str;
 		return "encrypted:" + new BlowfishEasy("sdfsdfs").encryptString(str);
-	}
-	public static String hash(String str) throws IOException {
-		if (StringUtil.isEmpty(str))
-			return "";
-		
-		// decrypt encrypted password first
-		if (StringUtil.startsWithIgnoreCase(str, "encrypted:")) {
-			str=decrypt(str);
-		}
-		try {
-			return Hash.hash(str,Hash.ALGORITHM_SHA_256,5,Hash.ENCODING_HEX);
-		}
-		catch (NoSuchAlgorithmException e) {
-			throw ExceptionUtil.toIOException(e);
-		}
 	}
 
 	private static Struct toStruct(String str) {
@@ -2420,21 +2433,20 @@ public final class ConfigWebFactory extends ConfigFactory {
 	private static void loadRailoConfig(ConfigServerImpl configServer, ConfigImpl config, Document doc) throws IOException  {
 		Element railoConfiguration = doc.getDocumentElement();
 		
+		// salt (every context need to have a salt)
+		String salt=railoConfiguration.getAttribute("salt");
+		if(StringUtil.isEmpty(salt,true)) throw new RuntimeException("context is invalid, there is no salt!");
+		config.setSalt(salt=salt.trim());
+		
+		
+		
 		// password
-		String hpw=railoConfiguration.getAttribute("pw");
-		if(StringUtil.isEmpty(hpw)) {
-			// old password type
-			String pwEnc = railoConfiguration.getAttribute("password"); // encrypted password (reversable)
-			if (!StringUtil.isEmpty(pwEnc)) {
-				String pwDec = new BlowfishEasy("tpwisgh").decryptString(pwEnc);
-				hpw=hash(pwDec);
-			}
-		}
-		if(!StringUtil.isEmpty(hpw))
-			config.setPassword(hpw);
-		else if (configServer != null) {
+		Password pw=Password.getInstance(railoConfiguration,salt,false);
+		if(pw!=null) 
+			config.setPassword(pw);
+		else if (configServer != null) 
 			config.setPassword(configServer.getDefaultPassword());
-		}
+		
 		
 		if(config instanceof ConfigServerImpl) {
 			ConfigServerImpl csi=(ConfigServerImpl)config;
@@ -2460,18 +2472,9 @@ public final class ConfigWebFactory extends ConfigFactory {
 		
 		// default password
 		if (config instanceof ConfigServerImpl) {
-			hpw=railoConfiguration.getAttribute("default-pw");
-			if(StringUtil.isEmpty(hpw)) {
-				// old password type
-				String pwEnc = railoConfiguration.getAttribute("default-password"); // encrypted password (reversable)
-				if (!StringUtil.isEmpty(pwEnc)) {
-					String pwDec = new BlowfishEasy("tpwisgh").decryptString(pwEnc);
-					hpw=hash(pwDec);
-				}
-			}
-			
-			if(!StringUtil.isEmpty(hpw))
-				((ConfigServerImpl) config).setDefaultPassword(hpw);
+			pw=Password.getInstance(railoConfiguration,salt,true);
+			if(pw!=null)
+				((ConfigServerImpl) config).setDefaultPassword(pw);
 		}
 
 		// mode
@@ -2615,7 +2618,7 @@ public final class ConfigWebFactory extends ConfigFactory {
 		if (fileSystem == null)
 			fileSystem = getChildByName(doc.getDocumentElement(), "filesystem");
 
-		String strAllowRealPath = null;
+		String strAllowRelPath = null;
 		String strDeployDirectory = null;
 		// String strTempDirectory=null;
 		String strTLDDirectory = null;
@@ -2624,7 +2627,7 @@ public final class ConfigWebFactory extends ConfigFactory {
 		String strFunctionDirectory = null;
 
 		if (fileSystem != null) {
-			strAllowRealPath = ConfigWebUtil.translateOldPath(fileSystem.getAttribute("allow-realpath"));
+			strAllowRelPath = ConfigWebUtil.translateOldPath(fileSystem.getAttribute("allow-relpath"));
 			strDeployDirectory = ConfigWebUtil.translateOldPath(fileSystem.getAttribute("deploy-directory"));
 			// strTempDirectory=ConfigWebUtil.translateOldPath(fileSystem.getAttribute("temp-directory"));
 			strTLDDirectory = ConfigWebUtil.translateOldPath(fileSystem.getAttribute("tld-directory"));
@@ -2680,12 +2683,12 @@ public final class ConfigWebFactory extends ConfigFactory {
 			}
 		}
 
-		// allow realpath
+		// allow relpath
 		if (hasCS) {
-			config.setAllowRealPath(configServer.allowRealPath());
+			config.setAllowRelPath(configServer.allowRelPath());
 		}
-		if (!StringUtil.isEmpty(strAllowRealPath, true)) {
-			config.setAllowRealPath(Caster.toBooleanValue(strAllowRealPath, true));
+		if (!StringUtil.isEmpty(strAllowRelPath, true)) {
+			config.setAllowRelPath(Caster.toBooleanValue(strAllowRelPath, true));
 		}
 
 		// FLD Dir
@@ -2723,10 +2726,13 @@ public final class ConfigWebFactory extends ConfigFactory {
 					"Dump.cfc"
 					},dir,doNew);
 			
-			Resource sub = dir.getRealResource("railo/dump/skins/");
+			/*Resource sub = dir.getRealResource("railo/dump/skins/");
+			create("/resource/library/tag/railo/dump/skins/",new String[]{
+					"classic.json","large.json","pastel.cfm"
+					},sub,doNew);
 			create("/resource/library/tag/railo/dump/skins/",new String[]{
 					"text.cfm","simple.cfm","modern.cfm","classic.cfm","pastel.cfm"
-					},sub,doNew);
+					},sub,doNew);*/
 
 			// MediaPlayer
 			Resource f = dir.getRealResource("MediaPlayer.cfc");
@@ -3607,10 +3613,13 @@ public final class ConfigWebFactory extends ConfigFactory {
 		if (config instanceof ConfigServer) {
 			Element login = getChildByName(doc.getDocumentElement(), "login");
 			boolean captcha = Caster.toBooleanValue(login.getAttribute("captcha"), false);
+			boolean rememberme = Caster.toBooleanValue(login.getAttribute("rememberme"), true);
+			
 			int delay = Caster.toIntValue(login.getAttribute("delay"), 1);
 			ConfigServerImpl cs = (ConfigServerImpl) config;
 			cs.setLoginDelay(delay);
 			cs.setLoginCaptcha(captcha);
+			cs.setRememberMe(rememberme);
 		}
 	}
 

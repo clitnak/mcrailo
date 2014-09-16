@@ -78,7 +78,7 @@ public final class PCLCollection {
     	// if class is already loaded flush the classloader and do new classloader
     	PCLBlock cl = index.get(name);
     	if(cl!=null) {
-    		// if can upate class
+    		// if can update class
     		if(InstrumentationUtil.isSupported()){
     			try{
     				Class<?> old = cl.loadClass(name);
@@ -107,6 +107,21 @@ public final class PCLCollection {
     	PCLBlock c = current(isCFC);
     	index.put(name, c);
     	return c.loadClass(name, barr);
+    }
+    
+    /**
+     * load existing class
+     * @param name
+     * @return
+     * @throws ClassNotFoundException 
+     */
+    public synchronized Class<?> loadClass(String className) throws ClassNotFoundException {
+    	// if class is already loaded flush the classloader and do new classloader
+    	PCLBlock cl = index.get(className);
+    	if(cl!=null) {
+    		return cl.loadClass(className);
+    	}
+    	throw new ClassNotFoundException("class "+className+" not found");
     }
 
     public synchronized Class<?> getClass(PageSourceImpl ps) throws ClassNotFoundException {

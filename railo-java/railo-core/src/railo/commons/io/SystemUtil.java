@@ -37,9 +37,11 @@ import railo.runtime.Info;
 import railo.runtime.config.Config;
 import railo.runtime.exp.ApplicationException;
 import railo.runtime.exp.DatabaseException;
+import railo.runtime.exp.StopException;
 import railo.runtime.functions.other.CreateUniqueId;
 import railo.runtime.net.http.ReqRspUtil;
 import railo.runtime.op.Caster;
+import railo.runtime.tag.ThreadTag;
 import railo.runtime.type.Array;
 import railo.runtime.type.Collection;
 import railo.runtime.type.KeyImpl;
@@ -72,6 +74,18 @@ public final class SystemUtil {
 	public static final char CHAR_EURO=(char)8364;
 	
 
+	public static final int JAVA_VERSION_1_0 = 0;
+	public static final int JAVA_VERSION_1_1 = 1;
+	public static final int JAVA_VERSION_1_2 = 2;
+	public static final int JAVA_VERSION_1_3 = 3;
+	public static final int JAVA_VERSION_1_4 = 4;
+	public static final int JAVA_VERSION_1_5 = 5;
+	public static final int JAVA_VERSION_1_6 = 6;
+	public static final int JAVA_VERSION_1_7 = 7;
+	public static final int JAVA_VERSION_1_8 = 8;
+	public static final int JAVA_VERSION_1_9 = 9;
+	
+
 	public static final int OUT = 0;
 	public static final int ERR = 1;
 	
@@ -83,6 +97,21 @@ public final class SystemUtil {
     
 	private static final boolean isWindows=System.getProperty("os.name").toLowerCase().startsWith("windows");
     private static final boolean isUnix=!isWindows &&  File.separatorChar == '/';
+    
+    private static final String JAVA_VERSION_STRING = System.getProperty("java.version");
+    public static final int JAVA_VERSION;
+    static {
+    	if(JAVA_VERSION_STRING.startsWith("1.9.")) 		JAVA_VERSION=JAVA_VERSION_1_9;
+    	else if(JAVA_VERSION_STRING.startsWith("1.8."))	JAVA_VERSION=JAVA_VERSION_1_8;
+    	else if(JAVA_VERSION_STRING.startsWith("1.7.")) JAVA_VERSION=JAVA_VERSION_1_7;
+    	else if(JAVA_VERSION_STRING.startsWith("1.6.")) JAVA_VERSION=JAVA_VERSION_1_6;
+    	else if(JAVA_VERSION_STRING.startsWith("1.5.")) JAVA_VERSION=JAVA_VERSION_1_5;
+    	else if(JAVA_VERSION_STRING.startsWith("1.4.")) JAVA_VERSION=JAVA_VERSION_1_4;
+    	else if(JAVA_VERSION_STRING.startsWith("1.3.")) JAVA_VERSION=JAVA_VERSION_1_3;
+    	else if(JAVA_VERSION_STRING.startsWith("1.2.")) JAVA_VERSION=JAVA_VERSION_1_2;
+    	else if(JAVA_VERSION_STRING.startsWith("1.1.")) JAVA_VERSION=JAVA_VERSION_1_1;
+    	else JAVA_VERSION=JAVA_VERSION_1_0;
+    }
 	
     private static Resource tempFile;
     private static Resource homeFile;
@@ -727,6 +756,18 @@ public final class SystemUtil {
 		return max-used;
 	}
 	
+	public static int getPermGenFreeSpaceAsAPercentageOfAvailable() { 	
+		MemoryUsage mu = getPermGenSpaceSize(null);
+		if(mu == null) return -1;
+		
+		long max = mu.getMax();
+		long used = mu.getUsed();
+		if( max < 0 || used < 0) return -1;
+		
+		//return a value that equates to a percentage of available free memory
+		return 100 - ((int)(100 * (((double)used) / ((double)max))));
+	}
+	
 	public static int getFreePermGenSpacePromille() {
 		MemoryUsage mu = getPermGenSpaceSize(null);
 		if(mu==null) return -1;
@@ -951,5 +992,13 @@ public final class SystemUtil {
 			
 		}
 		return macAddress;
+	}
+	
+	public static void stop(Thread t) {
+		stop(t,new StopException());
+	}
+	
+	public static void stop(Thread thread, Throwable t) {
+		if(thread.isAlive())thread.stop(t);
 	}
 }

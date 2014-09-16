@@ -70,6 +70,7 @@ import railo.runtime.config.ConfigWebImpl;
 import railo.runtime.config.ConfigWebUtil;
 import railo.runtime.config.DebugEntry;
 import railo.runtime.config.DeployHandler;
+import railo.runtime.config.Password;
 import railo.runtime.config.RemoteClient;
 import railo.runtime.config.RemoteClientImpl;
 import railo.runtime.db.DataSource;
@@ -159,7 +160,6 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 
     private static final short ACCESS_READ=10;
     private static final short ACCESS_WRITE=11;
-    private static final short CHECK_PW=12;
 
 	//private static final String USAGE_SYNC = "synchronisation";
 	//private static final String USAGE_CLUSTER = "cluster";
@@ -221,7 +221,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     private short type;
     private String password;
     private ConfigWebAdmin admin;
-    private ConfigImpl config;
+    private ConfigImpl config=null;
     
     private static final ResourceFilter FILTER_CFML_TEMPLATES=new LogResourceFilter(
         new OrResourceFilter(new ResourceFilter[]{
@@ -251,6 +251,8 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     @Override
     public int doStartTag() throws PageException {
     	//adminSync = pageContext.getAdminSync();
+    	config=(ConfigImpl)pageContext.getConfig();
+
     	
     	// Action
         Object objAction=attributes.get(KeyConstants._action);
@@ -298,38 +300,17 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         
         // update Password
         else if(action.equals("updatepassword")) {
-        	
-            try {
-            	((ConfigWebImpl)pageContext.getConfig()).setPassword(type!=TYPE_WEB,
-                        getString("oldPassword",null),getString("admin",action,"newPassword",true),false,false);
-            } 
-            catch (Exception e) {
-                throw Caster.toPageException(e);
-            }
+	        try{	
+	        	((ConfigWebImpl)pageContext.getConfig()).updatePassword(type!=TYPE_WEB,
+	        			getString("oldPassword",null),getString("admin",action,"newPassword",true));
+	        } 
+	        catch (Exception e) {
+	            throw Caster.toPageException(e);
+	        }
             return SKIP_BODY;
         }
         
 
-        try {
-            // Password
-            password = ConfigWebFactory.hash(getString("password",""));
-            // Config
-            config=(ConfigImpl)pageContext.getConfig();
-            if(type==TYPE_SERVER)
-                config=(ConfigImpl)config.getConfigServer(password);
-            
-            adminSync = config.getAdminSync();
-        	admin = ConfigWebAdmin.newInstance(config,password);
-        } 
-        catch (Exception e) {
-            throw Caster.toPageException(e);
-        }
-        //int version=config.getSerialNumber().getVersion();
-        /*if(type==TYPE_SERVER && version!=SerialNumber.VERSION_ENTERPRISE && version!=SerialNumber.VERSION_DEVELOP)
-            throw new SecurityException("can't access server settings with "+config.getSerialNumber().getStringVersion()+
-                    " version of Railo");
-                    
-        */
                
         try {
 			_doStartTag();
@@ -480,7 +461,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
      * 
      */
     private void _doStartTag() throws PageException,IOException {
-        
+    	config=(ConfigImpl)pageContext.getConfig();
 
     	// getToken
     	if(action.equals("gettoken")) {
@@ -514,14 +495,55 @@ public final class Admin extends TagImpl implements DynamicAttributes {
             return;
         }
         
+        if(check("hashpassword",ACCESS_FREE)) {
+        	String raw=getString("admin",action,"pw");
+        	Password pw=Password.hashPassword(pageContext.getConfig(),type!=TYPE_WEB,raw);
+        	
+        	Password changed=((ConfigWebImpl)pageContext.getConfig()).updatePasswordIfNecessary(type==TYPE_SERVER,raw);
+        	if(changed!=null) pw=changed;
+        	
+        	pageContext.setVariable(
+    				getString("admin",action,"returnVariable"),
+    				pw.password
+    			);
+        	return; // do not remove
+    	}
         
-    	
-    	if(check("connect",ACCESS_FREE) && check2(CHECK_PW)) {
+        try {
+            // Password
+        	password = getString("password","");
+        	
+        	
+        	Password tmp = type==TYPE_SERVER?((ConfigWebImpl)config).isServerPasswordEqual(password, true):config.isPasswordEqual(password, true); // hash password if necessary (for backward compatibility)
+        	if(tmp!=null)password=tmp.password;
+        	
+        	// Config
+            if(type==TYPE_SERVER)
+                config=(ConfigImpl)config.getConfigServer(password);
+            
+            adminSync = config.getAdminSync();
+        	admin = ConfigWebAdmin.newInstance(config,password);
+        } 
+        catch (Exception e) {
+            throw Caster.toPageException(e);
+        }
+        
+    		
+    	if(check("connect",ACCESS_FREE) ) {
+    		Password pw=ConfigWebUtil.checkPassword(config,null,password);
+    		
+    		
+			ConfigWebUtil.checkGeneralReadAccess(config,password);
+			
     		try{
     			if(config instanceof ConfigServer)
     				((PageContextImpl)pageContext).setServerPassword(password);
     		}
     		catch(Throwable t){}
+    		
+    		
+    		
+    		
     	}
     	else if(check("getinfo",           ACCESS_FREE) && check2(ACCESS_READ  )) doGetInfo();
     	else if(check("surveillance",           ACCESS_FREE) && check2(ACCESS_READ  )) doSurveillance();
@@ -764,10 +786,10 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 	private boolean check2(short accessRW) throws SecurityException {
     	if(accessRW==ACCESS_READ) ConfigWebUtil.checkGeneralReadAccess(config,password);
 		else if(accessRW==ACCESS_WRITE) ConfigWebUtil.checkGeneralWriteAccess(config,password);
-		else if(accessRW==CHECK_PW) {
+		/*else if(accessRW==CHECK_PW) {
 			ConfigWebUtil.checkGeneralReadAccess(config,password);
 			ConfigWebUtil.checkPassword(config,null,password);
-		}
+		}*/
     	return true;
     }
    	private boolean check(String action, short access) throws ApplicationException {
@@ -1059,8 +1081,8 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     private void doResetPassword() throws PageException {
         
         try {
-            admin.setPassword(getString("contextPath",null),null);
-        }catch (Exception e) {} 
+            admin.removePassword(getString("contextPath",null));
+        }catch (Exception e) {e.printStackTrace();} 
         store();
     }
     
@@ -1239,7 +1261,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     
     private void doUpdateContext() throws PageException, IOException {
     	String strSrc = getString("admin",action,"source");
-    	String strRealpath = getString("admin",action,"destination");
+    	String strRelPath = getString("admin",action,"destination");
         Resource src = ResourceUtil.toResourceExisting(pageContext, strSrc);
         
         ConfigServerImpl server = (ConfigServerImpl) config.getConfigServer(password);
@@ -1248,7 +1270,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         deploy.mkdirs();
         
         // deploy it
-        trg=deploy.getRealResource(strRealpath);
+        trg=deploy.getRealResource(strRelPath);
     	if(trg.exists()) trg.remove(true);
     	p = trg.getParentResource();
         if(!p.isDirectory())p.createDirectory(true);
@@ -1264,11 +1286,11 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     
     
     private void doRemoveContext() throws PageException, IOException {
-    	String strRealpath = getString("admin",action,"destination");
+    	String strRelPath = getString("admin",action,"destination");
     	ConfigServerImpl server = (ConfigServerImpl) config;
         
     	try {
-    		admin.removeContext(server, true,strRealpath);
+    		admin.removeContext(server, true,strRelPath);
 		}
 		catch (SAXException e) {
 			throw Caster.toPageException(e);
@@ -1327,12 +1349,11 @@ public final class Admin extends TagImpl implements DynamicAttributes {
      * 
      */
     private void doGetDefaultPassword() throws PageException {
-        String password = admin.getDefaultPassword();
-        if(password==null) password="";
+        Password password = admin.getDefaultPassword();
         
         pageContext.setVariable(
                 getString("admin",action,"returnVariable"),
-                password);
+                password==null?"":password.password);
     }
     
     /**
@@ -2440,7 +2461,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     
     private static void fillGetRunningThreads(railo.runtime.type.Query qry, ConfigWeb configWeb) throws PageException {
     	CFMLFactoryImpl factory = ((CFMLFactoryImpl)configWeb.getFactory());
-    	Map<Integer, PageContextImpl> pcs = factory.getRunningPageContexts();
+    	Map<Integer, PageContextImpl> pcs = factory.getActivePageContexts();
     	Iterator<PageContextImpl> it = pcs.values().iterator();
         PageContextImpl pc;
         Collection.Key key;
@@ -3016,7 +3037,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
     
     private static boolean terminateRunningThread(ConfigWeb configWeb,int id) {
 
-    	Map<Integer, PageContextImpl> pcs = ((CFMLFactoryImpl)configWeb.getFactory()).getRunningPageContexts();
+    	Map<Integer, PageContextImpl> pcs = ((CFMLFactoryImpl)configWeb.getFactory()).getActivePageContexts();
         Iterator<PageContextImpl> it = pcs.values().iterator();
         PageContextImpl pc;
         Collection.Key key;
@@ -4012,18 +4033,18 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 			    		getString("admin", "UpdateExtensions","version"),
 			    		
 			    		getString("admin", "UpdateExtensions","name"),
-			    		getString("admin", "UpdateExtensions","label"),
-			    		getString("admin", "UpdateExtensions","description"),
-			    		getString("admin", "UpdateExtensions","category"),
-			    		getString("admin", "UpdateExtensions","image"),
-			    		getString("admin", "UpdateExtensions","author"),
-			    		getString("admin", "UpdateExtensions","codename"),
-			    		getString("admin", "UpdateExtensions","video"),
-			    		getString("admin", "UpdateExtensions","support"),
-			    		getString("admin", "UpdateExtensions","documentation"),
-			    		getString("admin", "UpdateExtensions","forum"),
-			    		getString("admin", "UpdateExtensions","mailinglist"),
-			    		getString("admin", "UpdateExtensions","network"),
+			    		getString("label",""),
+			    		getString("description",""),
+			    		getString("category",""),
+			    		getString("image",""),
+			    		getString("author",""),
+			    		getString("codename",""),
+			    		getString("video",""),
+			    		getString("support",""),
+			    		getString("documentation",""),
+			    		getString("forum",""),
+			    		getString("mailinglist",""),
+			    		getString("network",""),
 			    		getDateTime("created",null),
 			    		getString("admin", "UpdateExtensions","_type")
 			    	));
@@ -4290,9 +4311,10 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 
 
 	private void doUpdateLoginSettings() throws PageException {
+		boolean rememberMe = getBool("admin", "UpdateLoginSettings", "rememberme");
 		boolean captcha = getBool("admin", "UpdateLoginSettings", "captcha");
 		int delay = getInt("admin", "UpdateLoginSettings", "delay");
-		admin.updateLoginSettings(captcha,delay);
+		admin.updateLoginSettings(captcha,rememberMe,delay);
 		store();
 	}
 
@@ -4671,6 +4693,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
         pageContext.setVariable(getString("admin",action,"returnVariable"),sct);
         sct.set("captcha",Caster.toBoolean(c.getLoginCaptcha()));
         sct.set("delay",Caster.toDouble(c.getLoginDelay()));
+        sct.set("rememberme",Caster.toBoolean(c.getRememberMe()));
         
 	}
 

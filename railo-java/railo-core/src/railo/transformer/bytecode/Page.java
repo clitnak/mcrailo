@@ -240,7 +240,7 @@ public final class Page extends BodyBase {
 						Types.STRING, // hind
 						Types.STRING, // display
 						Types.STRING, // callpath
-						Types.BOOLEAN_VALUE, // realpath
+						Types.BOOLEAN_VALUE, // relpath
 						Types.MAP, //interfaceudfs
 						Types.MAP // meta
 					}
@@ -432,10 +432,11 @@ public final class Page extends BodyBase {
     	else if(isInterface()) parent="railo/runtime/InterfacePage";
     	
     	cw.visit(Opcodes.V1_6, Opcodes.ACC_PUBLIC+Opcodes.ACC_FINAL, name, null, parent, null);
-    	//cw.visitSource(this.source.getAbsolutePath(), null);
-    	cw.visitSource(this.pageSource.getFullRealpath(), null);
-
-        // static constructor
+    	cw.visitSource(this.pageSource.getPhyscalFile().getAbsolutePath(),
+    			"rel:"+this.pageSource.getFullRelPath()); // when adding more use ; as delimiter
+    	//
+    	
+    	// static constructor
         //GeneratorAdapter statConstrAdapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC,STATIC_CONSTRUCTOR,null,null,cw);
 		BytecodeContext statConstr = null;//new BytecodeContext(null,null,this,externalizer,keys,cw,name,statConstrAdapter,STATIC_CONSTRUCTOR,writeLog(),suppressWSbeforeArg);
 		
@@ -854,7 +855,7 @@ public final class Page extends BodyBase {
 			
 		TryCatchFinallyVisitor tcf=new TryCatchFinallyVisitor(new OnFinally() {
 			
-			public void writeOut(BytecodeContext bc) {
+			public void _writeOut(BytecodeContext bc) {
 
 				// undefined.setMode(oldMode);
 				adapter.loadArg(0);
@@ -1088,7 +1089,7 @@ public final class Page extends BodyBase {
 				
 		// callpath
 		adapter.visitVarInsn(Opcodes.ALOAD, 2);
-		// realpath
+		// relpath
 		adapter.visitVarInsn(Opcodes.ILOAD, 3);
 		
 
@@ -1187,7 +1188,7 @@ public final class Page extends BodyBase {
 		
 		// callpath
 		adapter.visitVarInsn(Opcodes.ALOAD, 1);
-		// realpath
+		// relpath
 		adapter.visitVarInsn(Opcodes.ILOAD, 2);
 		
 		// interface udfs

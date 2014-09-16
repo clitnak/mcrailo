@@ -981,6 +981,7 @@ public final class Decision {
         break;
     	case 'd':
     		if("date".equals(type))			return isDateAdvanced(value,true);  // ist zwar nicht logisch aber ident. zu Neo
+    		if("datetime".equals(type))			return isDateAdvanced(value,true);  // ist zwar nicht logisch aber ident. zu Neo
     		if("double".equals(type))		return isCastableToNumeric(value);
         break;
     	case 'e':
@@ -996,6 +997,7 @@ public final class Decision {
     	break;
         case 'i':
         	if("integer".equals(type))		return isInteger(value,false);
+        	if("image".equals(type))		return Image.isImage(value);
         break;
         case 'n':
         	if("numeric".equals(type))		return isCastableToNumeric(value);
@@ -1393,5 +1395,9 @@ public final class Decision {
 	 */
 	public static boolean isValid(double dbl) {
 		return !Double.isNaN(dbl) && !Double.isInfinite(dbl);
+	}
+
+	public static boolean isAnyType(String type) {
+		return StringUtil.isEmpty(type) || type.equalsIgnoreCase("object") || type.equalsIgnoreCase("any");
 	}
 }

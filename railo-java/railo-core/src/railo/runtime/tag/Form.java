@@ -9,7 +9,6 @@ import java.util.Map.Entry;
 import railo.commons.lang.IDGenerator;
 import railo.commons.lang.StringUtil;
 import railo.runtime.exp.ApplicationException;
-import railo.runtime.exp.ExpressionException;
 import railo.runtime.exp.PageException;
 import railo.runtime.ext.tag.BodyTagImpl;
 import railo.runtime.functions.dynamicEvaluation.DE;
@@ -508,11 +507,7 @@ public final class Form extends BodyTagImpl {
 
 
     private String de(String str) {
-        try {
-            return DE.call(pageContext,str);
-        } catch (ExpressionException e) {
-            return "\"\"";
-        }
+        return DE.call(pageContext,str);
     }
     private String js(String str) {
         if(str==null) return "null";

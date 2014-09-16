@@ -71,6 +71,7 @@ import railo.runtime.extension.Extension;
 import railo.runtime.extension.RHExtension;
 import railo.runtime.functions.cache.Util;
 import railo.runtime.functions.other.CreateObject;
+import railo.runtime.functions.other.CreateUUID;
 import railo.runtime.functions.other.URLEncodedFormat;
 import railo.runtime.functions.string.Hash;
 import railo.runtime.gateway.GatewayEntry;
@@ -147,19 +148,9 @@ public final class ConfigWebAdmin {
      * @throws DOMException 
      * @throws ExpressionException 
      */
-    public void setPassword(String password) throws SecurityException, DOMException, IOException {
+    public void setPassword(Password password) throws SecurityException, DOMException, IOException {
     	checkWriteAccess();
-        Element root=doc.getDocumentElement();
-        
-        if(root.hasAttribute("password")) root.removeAttribute("password");
-        
-        
-        if(StringUtil.isEmpty(password)) {
-            if(root.hasAttribute("pw")) root.removeAttribute("pw");
-        }
-        else {
-            root.setAttribute("pw",password);
-        }
+    	Password.store(doc.getDocumentElement(), password, false);
     }
 
     public void setVersion(double version) {
@@ -194,15 +185,15 @@ public final class ConfigWebAdmin {
      * @throws SAXException
      * @throws PageException
      */
-    public void setPassword(String contextPath,String password) throws PageException, SAXException, ClassException, IOException, TagLibException, FunctionLibException {
+    public void removePassword(String contextPath) throws PageException, SAXException, ClassException, IOException, TagLibException, FunctionLibException {
     	checkWriteAccess();
     	if(contextPath==null || contextPath.length()==0 || !(config instanceof ConfigServerImpl)) {
-            setPassword(password);
+    		// config.setPassword(password); do nothing!
         }
         else { 
             ConfigServerImpl cs=(ConfigServerImpl)config;
             ConfigWebImpl cw=cs.getConfigWebImpl(contextPath);
-            if(cw!=null)cw.setPassword(false,cw.getPassword(),password,true,false);
+            if(cw!=null)cw.updatePassword(false,cw.getPassword(),null);
         }
     }
     
@@ -1119,6 +1110,25 @@ public final class ConfigWebAdmin {
     	tags.getParentNode().removeChild(tags);
 	}
     
+
+    public static boolean fixLFI(Document doc) {
+    	return "railo-configuration".equals(doc.getDocumentElement().getNodeName());
+    	
+    }
+    
+    /**
+     * make sure every context has a salt
+     * */
+    public static boolean fixSalt(Document doc) {
+    	Element root=doc.getDocumentElement();
+    	String salt=root.getAttribute("salt");
+    	if(StringUtil.isEmpty(salt,true) || !Decision.isUUId(salt)) {
+    		//create salt
+    		root.setAttribute("salt",CreateUUID.invoke());
+    		return true;
+    	}
+    	return false;
+    }
     
     public static boolean fixPSQ(Document doc) {
     	
@@ -2982,7 +2992,7 @@ public final class ConfigWebAdmin {
      * @return returns the default password
      * @throws SecurityException
      */
-    public String getDefaultPassword() throws SecurityException {
+    public Password getDefaultPassword() throws SecurityException {
     	checkReadAccess();
         if(config instanceof ConfigServerImpl) {
             return ((ConfigServerImpl)config).getDefaultPassword();
@@ -2997,18 +3007,14 @@ public final class ConfigWebAdmin {
      */
     public void updateDefaultPassword(String password) throws SecurityException, DOMException, IOException {
     	checkWriteAccess();
-        Element root=doc.getDocumentElement();
-        if(root.hasAttribute("default-password"))root.removeAttribute("default-password"); // remove old PW type
-        String hpw=ConfigWebFactory.hash(password);
-        root.setAttribute("default-pw",hpw);
-        ((ConfigServerImpl)config).setDefaultPassword(hpw);
+        ((ConfigServerImpl)config).setDefaultPassword(Password.hashAndStore(doc.getDocumentElement(),password,true));
+		
     }
 
 	public void removeDefaultPassword() throws SecurityException {
 		checkWriteAccess();
         Element root=doc.getDocumentElement();
-        if(root.hasAttribute("default-password"))root.removeAttribute("default-password");
-        if(root.hasAttribute("default-pw"))root.removeAttribute("default-pw");
+        Password.remove(root,true);
         ((ConfigServerImpl)config).setDefaultPassword(null);
 	}
     
@@ -3171,7 +3177,7 @@ public final class ConfigWebAdmin {
         CFMLEngineFactory factory = cs.getCFMLEngine().getCFMLEngineFactory();
         synchronized(factory){
 	        try {
-	            factory.update(cs.getPassword());
+	            factory.update(cs.getPassword().password);
 	        } 
 	        catch (Exception e) {
 	            throw Caster.toPageException(e);
@@ -3200,13 +3206,13 @@ public final class ConfigWebAdmin {
         	
         	if(onlyLatest){
         		try{
-        			factory.removeLatestUpdate(cs.getPassword());
+        			factory.removeLatestUpdate(cs.getPassword().password);
         		}
         		catch(Throwable t)	{
-        			removeLatestUpdateOld(factory,cs.getPassword());
+        			removeLatestUpdateOld(factory,cs.getPassword().password);
         		}
         	}
-        	else factory.removeUpdate(cs.getPassword());
+        	else factory.removeUpdate(cs.getPassword().password);
         	
         	
         } 
@@ -3267,7 +3273,7 @@ public final class ConfigWebAdmin {
         CFMLEngineFactory factory = cs.getCFMLEngine().getCFMLEngineFactory();
         synchronized(factory){
 	        try {
-	            factory.restart(cs.getPassword());
+	            factory.restart(cs.getPassword().password);
 	        } 
 	        catch (Exception e) {
 	            throw Caster.toPageException(e);
@@ -4131,10 +4137,11 @@ public final class ConfigWebAdmin {
 	}
 
 
-	public void updateLoginSettings(boolean captcha, int delay) {
+	public void updateLoginSettings(boolean captcha, boolean rememberMe, int delay) {
 
         Element login=_getRootElement("login");
         login.setAttribute("captcha",Caster.toString(captcha));
+        login.setAttribute("rememberme",Caster.toString(rememberMe));
         login.setAttribute("delay",Caster.toString(delay));
 		
 	}
@@ -4264,25 +4271,25 @@ public final class ConfigWebAdmin {
     }*/
 
 	
-	static Resource[] updateContext(ConfigImpl config,InputStream is,String realpath, boolean closeStream) throws PageException, IOException, SAXException {
+	static Resource[] updateContext(ConfigImpl config,InputStream is,String relpath, boolean closeStream) throws PageException, IOException, SAXException {
     	//ConfigWebAdmin admin = new ConfigWebAdmin(config, null);
     	List<Resource> filesDeployed=new ArrayList<Resource>();
-    	ConfigWebAdmin._updateContext(config, is, realpath, closeStream, filesDeployed);
+    	ConfigWebAdmin._updateContext(config, is, relpath, closeStream, filesDeployed);
     	return filesDeployed.toArray(new Resource[filesDeployed.size()]);
     }
 
-	private static void _updateContext(Config config,InputStream is,String realpath, boolean closeStream,List<Resource> filesDeployed) throws PageException, IOException, SAXException {
+	private static void _updateContext(Config config,InputStream is,String relpath, boolean closeStream,List<Resource> filesDeployed) throws PageException, IOException, SAXException {
     	if(config instanceof ConfigServer) {
     		ConfigWeb[] webs = ((ConfigServer)config).getConfigWebs();
     		if(webs.length==0) return;
     		if(webs.length==1) {
-    			_updateContext(webs[0], is,realpath,closeStream,filesDeployed);
+    			_updateContext(webs[0], is,relpath,closeStream,filesDeployed);
     			return;
     		}
         	try{
 	    		byte[] barr = IOUtil.toBytes(is);
 	    		for(int i=0;i<webs.length;i++){
-	    			_updateContext(webs[i], new ByteArrayInputStream(barr),realpath,true,filesDeployed);
+	    			_updateContext(webs[i], new ByteArrayInputStream(barr),relpath,true,filesDeployed);
 	    		}
         	}
         	finally {
@@ -4292,7 +4299,7 @@ public final class ConfigWebAdmin {
     	}
 		
     	// ConfigWeb
-    	Resource trg = config.getConfigDir().getRealResource("context").getRealResource(realpath);
+    	Resource trg = config.getConfigDir().getRealResource("context").getRealResource(relpath);
         if(trg.exists()) trg.remove(true);
         Resource p = trg.getParentResource();
         if(!p.isDirectory()) p.createDirectory(true); 
@@ -4300,24 +4307,24 @@ public final class ConfigWebAdmin {
         filesDeployed.add(trg);
         _store((ConfigImpl)config);
     }
-	public boolean removeContext(Config config, boolean store,String... realpathes) throws PageException, IOException, SAXException {
-		if(ArrayUtil.isEmpty(realpathes)) return false;
+	public boolean removeContext(Config config, boolean store,String... relpathes) throws PageException, IOException, SAXException {
+		if(ArrayUtil.isEmpty(relpathes)) return false;
 		boolean force=false;
-		for(int i=0;i<realpathes.length;i++){
-			if(_removeContext(config, realpathes[i],store))
+		for(int i=0;i<relpathes.length;i++){
+			if(_removeContext(config, relpathes[i],store))
 				force=true;
 		}
 		return force;
 	}
 	
-	private boolean _removeContext(Config config,String realpath, boolean _store) throws PageException, IOException, SAXException {
+	private boolean _removeContext(Config config,String relpath, boolean _store) throws PageException, IOException, SAXException {
     	
 		if(config instanceof ConfigServer) {
 			ConfigServer cs = ((ConfigServer)config);
     		
 			// remove files from deploy folder
 			Resource deploy = cs.getConfigDir().getRealResource("web-context-deployment");
-    		Resource trg = deploy.getRealResource(realpath);
+    		Resource trg = deploy.getRealResource(relpath);
     		
     		if(trg.exists()) {
     			trg.remove(true);
@@ -4328,7 +4335,7 @@ public final class ConfigWebAdmin {
 			boolean store=false;
 			ConfigWeb[] webs = cs.getConfigWebs();
     		for(int i=0;i<webs.length;i++){
-	    		if(_removeContext(webs[i], realpath,_store)) {
+	    		if(_removeContext(webs[i], relpath,_store)) {
 	    			store=true;
 	    		}
 	    	}
@@ -4337,7 +4344,7 @@ public final class ConfigWebAdmin {
 		
     	// ConfigWeb
 		Resource context = config.getConfigDir().getRealResource("context");
-    	Resource trg = context.getRealResource(realpath);
+    	Resource trg = context.getRealResource(relpath);
     	if(trg.exists()) {
         	trg.remove(true);
         	if(_store) ConfigWebAdmin._store((ConfigImpl) config);
@@ -4347,25 +4354,25 @@ public final class ConfigWebAdmin {
         return false;
     }
 
-	static Resource[] updateApplication(ConfigImpl config,InputStream is,String realpath, boolean closeStream) throws PageException, IOException, SAXException {
+	static Resource[] updateApplication(ConfigImpl config,InputStream is,String relpath, boolean closeStream) throws PageException, IOException, SAXException {
     	ConfigWebAdmin admin = new ConfigWebAdmin(config, null);
     	List<Resource> filesDeployed=new ArrayList<Resource>();
-    	admin._updateApplication(config, is, realpath, closeStream, filesDeployed);
+    	admin._updateApplication(config, is, relpath, closeStream, filesDeployed);
     	return filesDeployed.toArray(new Resource[filesDeployed.size()]);
     }
 
-	private void _updateApplication(Config config,InputStream is,String realpath, boolean closeStream,List<Resource> filesDeployed) throws PageException, IOException, SAXException {
+	private void _updateApplication(Config config,InputStream is,String relpath, boolean closeStream,List<Resource> filesDeployed) throws PageException, IOException, SAXException {
     	if(config instanceof ConfigServer) {
     		ConfigWeb[] webs = ((ConfigServer)config).getConfigWebs();
     		if(webs.length==0) return;
     		if(webs.length==1) {
-    			_updateApplication(webs[0], is,realpath,closeStream,filesDeployed);
+    			_updateApplication(webs[0], is,relpath,closeStream,filesDeployed);
     			return;
     		}
         	try{
 	    		byte[] barr = IOUtil.toBytes(is);
 	    		for(int i=0;i<webs.length;i++){
-	    			_updateApplication(webs[i], new ByteArrayInputStream(barr),realpath,true,filesDeployed);
+	    			_updateApplication(webs[i], new ByteArrayInputStream(barr),relpath,true,filesDeployed);
 	    		}
         	}
         	finally {
@@ -4377,7 +4384,7 @@ public final class ConfigWebAdmin {
     	// ConfigWeb
     	
     	
-    	Resource trg = config.getRootDirectory().getRealResource(realpath);
+    	Resource trg = config.getRootDirectory().getRealResource(relpath);
     	if(trg.exists()) trg.remove(true);
         Resource p = trg.getParentResource();
         if(!p.isDirectory()) p.createDirectory(true); 
@@ -4386,25 +4393,25 @@ public final class ConfigWebAdmin {
         //_store((ConfigImpl)config);
     }
 
-	private void removeApplications(Config config,String[] realpathes) throws PageException, IOException, SAXException {
-		if(ArrayUtil.isEmpty(realpathes)) return;
-		for(int i=0;i<realpathes.length;i++){
-			removeApplication(config, realpathes[i]);
+	private void removeApplications(Config config,String[] relpathes) throws PageException, IOException, SAXException {
+		if(ArrayUtil.isEmpty(relpathes)) return;
+		for(int i=0;i<relpathes.length;i++){
+			removeApplication(config, relpathes[i]);
 		}
 	}
 	
-	private void removeApplication(Config config,String realpath) throws PageException, IOException, SAXException {
+	private void removeApplication(Config config,String relpath) throws PageException, IOException, SAXException {
     	if(config instanceof ConfigServer) {
     		ConfigWeb[] webs = ((ConfigServer)config).getConfigWebs();
 			for(int i=0;i<webs.length;i++){
-				removeApplication(webs[i], realpath);
+				removeApplication(webs[i], relpath);
     		}
         	
     		return ;
     	}
 		
     	// ConfigWeb
-    	Resource trg = config.getRootDirectory().getRealResource(realpath);
+    	Resource trg = config.getRootDirectory().getRealResource(relpath);
     	if(trg.exists()) trg.remove(true);
     }
 	

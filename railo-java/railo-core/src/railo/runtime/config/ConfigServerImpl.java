@@ -60,7 +60,7 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
     //private Map contextes;
     private SecurityManager defaultSecurityManager;
     private Map<String,SecurityManager> managers=MapFactory.<String,SecurityManager>getConcurrentMap();
-    private String defaultPassword;
+    Password defaultPassword;
     private Resource rootDir;
     private URL updateLocation;
     private String updateType="";
@@ -73,6 +73,7 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 	private boolean monitoringEnabled=false;
 	private int delay=1;
 	private boolean captcha=false;
+	private boolean rememberMe=true;
 	private static ConfigServerImpl instance;
 
 	private String[] authKeys;
@@ -80,7 +81,8 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 	
 	private LinkedHashMapMaxSize<Long,String> previousNonces=new LinkedHashMapMaxSize<Long,String>(100);
 	
-	
+	private int permGenCleanUpThreshold=60;
+	 
 	/**
      * @param engine 
      * @param initContextes
@@ -129,20 +131,20 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
     }
     
     @Override
-    public ConfigWeb getConfigWeb(String realpath) {
-        return getConfigWebImpl(realpath);
+    public ConfigWeb getConfigWeb(String relpath) {
+        return getConfigWebImpl(relpath);
     }
     
     /**
      * returns CongigWeb Implementtion
-     * @param realpath
+     * @param relpath
      * @return ConfigWebImpl
      */
-    protected ConfigWebImpl getConfigWebImpl(String realpath) {
+    protected ConfigWebImpl getConfigWebImpl(String relpath) {
     	Iterator<String> it = initContextes.keySet().iterator();
         while(it.hasNext()) {
             ConfigWebImpl cw=((CFMLFactoryImpl)initContextes.get(it.next())).getConfigWebImpl();
-            if(ReqRspUtil.getRootPath(cw.getServletContext()).equals(realpath))
+            if(ReqRspUtil.getRootPath(cw.getServletContext()).equals(relpath))
                 return cw;
         }
         return null;
@@ -227,7 +229,7 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
     /**
      * @return Returns the defaultPassword.
      */
-    protected String getDefaultPassword() {
+    protected Password getDefaultPassword() {
         return defaultPassword;
     }
     
@@ -235,7 +237,7 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
     /**
      * @param defaultPassword The defaultPassword to set.
      */
-    protected void setDefaultPassword(String defaultPassword) {
+    protected void setDefaultPassword(Password defaultPassword) {
         this.defaultPassword = defaultPassword;
     }
 
@@ -380,7 +382,12 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 	protected void setLoginCaptcha(boolean captcha) {
 		this.captcha=captcha;
 	}
+	protected void setRememberMe(boolean rememberMe) {
+		this.rememberMe=rememberMe;
+	}
 
+	
+	
 	@Override
 	public int getLoginDelay() {
 		return delay;
@@ -389,6 +396,11 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 	@Override
 	public boolean getLoginCaptcha() {
 		return captcha;
+	}
+
+	@Override
+	public boolean getRememberMe() {
+		return rememberMe;
 	}
 
     public void reset() {
@@ -415,26 +427,35 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
     
     @Override
 	public void checkPermGenSpace(boolean check) {
-    	//print.e(Runtime.getRuntime().freeMemory());
-		// Runtime.getRuntime().freeMemory()<200000 || 
-    	// long pgs=SystemUtil.getFreePermGenSpaceSize();
     	int promille=SystemUtil.getFreePermGenSpacePromille();
     	
-    	// Pen Gen Space info not available 
-    	if(promille==-1) {//if(pgs==-1) {
-    		if(countLoadedPages()>500)
-    			shrink();
+    	long kbFreePermSpace=SystemUtil.getFreePermGenSpaceSize()/1024;
+    	int percentageAvailable = SystemUtil.getPermGenFreeSpaceAsAPercentageOfAvailable();
+    	
+    	
+    	// Pen Gen Space info not available indicated by a return of -1
+    	if(check && kbFreePermSpace < 0) {
+    		if(countLoadedPages() > 2000)
+    		shrink();
     	}
-    	else if(!check || promille<50){//else if(!check || pgs<1024*1024){
-			SystemOut.printDate(getErrWriter(),"+Free Perm Gen Space is less than 1mb (free:"+((SystemUtil.getFreePermGenSpaceSize())/1024)+"kb), shrink all template classloaders");
-			// first just call GC and check if it help
-			System.gc();
-			//if(SystemUtil.getFreePermGenSpaceSize()>1024*1024) 
-			if(SystemUtil.getFreePermGenSpacePromille()>50) 
-				return;
-			
-			shrink();
-		}
+    	else if (check && percentageAvailable < permGenCleanUpThreshold) {
+    		shrink();
+    		if (permGenCleanUpThreshold >= 5) {
+    			//adjust the threshold allowed down so the amount of permgen can slowly grow to its allocated space up to 100%
+    			setPermGenCleanUpThreshold(permGenCleanUpThreshold - 5);
+    		}
+    		else {
+    			SystemOut.printDate(getErrWriter()," Free Perm Gen Space is less than 5% free: shrinking all template classloaders : consider increasing allocated Perm Gen Space");
+    		}
+    	}
+    	else if(check && kbFreePermSpace < 2048) {
+    		SystemOut.printDate(getErrWriter()," Free Perm Gen Space is less than 2Mb (free:"+((SystemUtil.getFreePermGenSpaceSize()/1024))+"kb), shrinking all template classloaders");
+    		// first request a GC and then check if it helps
+    		System.gc();
+    		if((SystemUtil.getFreePermGenSpaceSize()/1024) < 2048) {
+    			 shrink();
+    		}
+    	}
 	}
     
     private void shrink() {
@@ -480,6 +501,14 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 			t.printStackTrace();
 		}
 		return 0;
+	}
+	
+	public int getPermGenCleanUpThreshold() {
+		return permGenCleanUpThreshold;
+	}
+
+	public void setPermGenCleanUpThreshold(int permGenCleanUpThreshold) {
+		this.permGenCleanUpThreshold = permGenCleanUpThreshold;
 	}
 
 	

@@ -205,6 +205,13 @@ public class Variable extends ExpressionBase implements Invoker {
 		else countFM++;
 		members.add(member);
 	}
+
+	public Member removeMember(int index) {
+		Member rtn = members.remove(index);
+		if(rtn instanceof DataMember)countDM--;
+		else countFM--;
+		return rtn;
+	}
 	
 	public final Type writeOutCollection(BytecodeContext bc, int mode) throws BytecodeException {
         ExpressionUtil.visitLine(bc, getStart());
@@ -686,7 +693,7 @@ public class Variable extends ExpressionBase implements Invoker {
 		if(!StringUtil.isEmpty(alias)) {
 			//String[] arrAlias = railo.runtime.type.List.toStringArray(railo.runtime.type.List.trimItems(railo.runtime.type.List.listToArrayRemoveEmpty(alias, ',')));
 			for(int i=0;i<nargs.length;i++){
-				if(names[i]!=null && railo.runtime.type.util.ListUtil.listFindNoCase(alias, names[i])!=-1){
+				if(names[i]!=null && railo.runtime.type.util.ListUtil.listFindNoCase(alias, names[i], ",")!=-1){
 					nargs[i].setValue(nargs[i].getRawValue(),flfa.getTypeAsString());
 					return new VT(nargs[i].getValue(),flfa.getTypeAsString(),i);
 				}

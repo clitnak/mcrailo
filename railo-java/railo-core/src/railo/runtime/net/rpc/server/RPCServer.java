@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -48,8 +47,6 @@ import railo.commons.io.IOUtil;
 import railo.commons.lang.ClassException;
 import railo.commons.lang.ClassUtil;
 import railo.runtime.Component;
-import railo.runtime.PageContext;
-import railo.runtime.engine.ThreadLocalPageContext;
 import railo.runtime.exp.PageException;
 import railo.runtime.exp.PageServletException;
 import railo.runtime.net.http.ReqRspUtil;
@@ -573,10 +570,10 @@ public final class RPCServer{
         msgContext.setProperty(Constants.MC_SERVLET_ENDPOINT_CONTEXT, sec);
         /* Save the real path */
         /**********************/
-        String realpath = context.getRealPath(requestPath);
+        String relpath = context.getRealPath(requestPath);
 
-        if (realpath != null) {
-            msgContext.setProperty(Constants.MC_REALPATH, realpath);
+        if (relpath != null) {
+            msgContext.setProperty(Constants.MC_REALPATH, relpath);
         }
 
         msgContext.setProperty(Constants.MC_CONFIGPATH, webInfPath);
@@ -806,8 +803,8 @@ public final class RPCServer{
 
 	public void registerTypeMapping(Class clazz) {
 		String fullname = clazz.getName();//,name,packages;
-		QName qname = new QName(AxisCaster.getRequestNameSpace(),fullname);
-		registerTypeMapping(clazz, qname);
+		//registerTypeMapping(clazz, new QName(AxisCaster.getRequestNameSpace(),fullname));
+		registerTypeMapping(clazz, new QName(AxisCaster.getRequestDefaultNameSpace(),fullname));
 	}
 	
 	private void registerTypeMapping(Class clazz,QName qname) {

@@ -3,7 +3,6 @@ package railo.runtime.net.rpc;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -589,7 +588,8 @@ public final class AxisCaster {
         		Object pojo= toPojo(null,tm,null,null,(Component)value,done);
         		try	{
         			if(type==null || type.getLocalPart().equals("anyType")) {
-        				type= new QName(getRequestNameSpace(),pojo.getClass().getName());
+        				type= new QName(getRequestDefaultNameSpace(),pojo.getClass().getName());
+        				//type= new QName(getRequestNameSpace(),pojo.getClass().getName());
         				//print.ds("missing type for "+pojo.getClass().getName());
         			}
         			TypeMappingUtil.registerBeanTypeMapping(tm, pojo.getClass(), type);

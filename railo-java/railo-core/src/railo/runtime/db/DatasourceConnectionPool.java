@@ -17,7 +17,6 @@ import railo.runtime.engine.ThreadLocalPageContext;
 import railo.runtime.exp.DatabaseException;
 import railo.runtime.exp.PageException;
 import railo.runtime.op.Caster;
-import railo.runtime.spooler.SpoolerEngineImpl;
 import railo.runtime.type.util.ArrayUtil;
 
 public class DatasourceConnectionPool {
@@ -82,8 +81,9 @@ public class DatasourceConnectionPool {
     }
 	
 	public void releaseDatasourceConnection(Config config,DatasourceConnection dc, boolean async) {
-		if(async)((SpoolerEngineImpl)config.getSpoolerEngine()).add((DatasourceConnectionImpl)dc);
-		else releaseDatasourceConnection(dc);
+		releaseDatasourceConnection(dc);
+		//if(async)((SpoolerEngineImpl)config.getSpoolerEngine()).add((DatasourceConnectionImpl)dc);
+		//else releaseDatasourceConnection(dc);
 	}
 	
 	public void releaseDatasourceConnection(DatasourceConnection dc) {
