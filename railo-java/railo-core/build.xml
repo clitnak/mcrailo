@@ -38,7 +38,7 @@
 				<striplinebreaks/>
 			</filterchain>
 		</loadfile>
-		<echo message="Version is: ${core.version}.rc" />
+		<echo message="Version is: railo-${core.version}.jar" />
     </target>
 
 	<!-- ================================= 
@@ -123,7 +123,7 @@
          ================================= -->
     <target name="package" depends="copy" description="Creates the the core.rc file.">
         <echo>Packaging the core.rc</echo>
-    	<jar destfile="${dist.dir}/${core.version}.rc">
+    	<jar destfile="${dist.dir}/railo-${core.version}.jar">
 			<fileset dir="${build.dir}/classes" excludes="**/servlet/**"/>
 		</jar>
     </target>
@@ -140,8 +140,10 @@
 
     <target name="deploy" depends="install" description="Deploys the .rc file and restarts MasterControl">
         <echo>Deploy ${core.version}.rc and restart MasterControlEMS</echo>
-    	<copy todir="D:\files\sites\v11\server\railo\railo-server\patches" file="${dist.dir}/${core.version}.rc"/>
     	<service action="stop" service="MasterControlEMS"/>
+    	<service action="stop" service="MasterControlEMS"/>
+    	<service action="stop" service="MasterControlEMS"/>
+    	<copy todir="D:\files\sites\v11\server\railo\" file="${dist.dir}/railo-${core.version}.jar"/>
     	<service action="start" service="MasterControlEMS"/>
     </target>
 	
